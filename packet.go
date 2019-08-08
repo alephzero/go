@@ -59,7 +59,7 @@ func (p *Packet) Bytes() ([]byte, error) {
 func (p *Packet) NumHeaders() (cnt int, err error) {
 	var ucnt C.size_t
 	err = errorFrom(C.a0_packet_num_headers(p.cPkt, &ucnt))
-	if err == nil {
+	if err != nil {
 		return
 	}
 	cnt = int(ucnt)
