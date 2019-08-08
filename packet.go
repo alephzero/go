@@ -28,7 +28,7 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 	defer C.free(cHdrs)
 
 	for i, hdr := range hdrs {
-		cHdr := (*[1<<30]C.a0_packet_header_t)(cHdrs)[i]
+		cHdr := (*[1 << 30]C.a0_packet_header_t)(cHdrs)[i]
 		cHdr.key.size = C.size_t(len(hdr.Key))
 		cHdr.key.ptr = (*C.uint8_t)(&hdr.Key[0])
 		cHdr.val.size = C.size_t(len(hdr.Val))
@@ -73,8 +73,8 @@ func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 		return
 	}
 
-	hdr.Key = (*[1<<30]byte)(unsafe.Pointer(cHdr.key.ptr))[:int(cHdr.key.size):int(cHdr.key.size)]
-	hdr.Val = (*[1<<30]byte)(unsafe.Pointer(cHdr.val.ptr))[:int(cHdr.val.size):int(cHdr.val.size)]
+	hdr.Key = (*[1 << 30]byte)(unsafe.Pointer(cHdr.key.ptr))[:int(cHdr.key.size):int(cHdr.key.size)]
+	hdr.Val = (*[1 << 30]byte)(unsafe.Pointer(cHdr.val.ptr))[:int(cHdr.val.size):int(cHdr.val.size)]
 
 	return
 }
@@ -86,7 +86,7 @@ func (p *Packet) Payload() (payload []byte, err error) {
 		return
 	}
 
-	payload = (*[1<<30]byte)(unsafe.Pointer(out.ptr))[:int(out.size):int(out.size)]
+	payload = (*[1 << 30]byte)(unsafe.Pointer(out.ptr))[:int(out.size):int(out.size)]
 
 	return
 }

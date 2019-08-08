@@ -6,6 +6,6 @@
 #include <stdlib.h>
 
 extern void a0go_alloc(void*, size_t, a0_buf_t*);
-// extern void a0go_callback(void*);
+extern void a0go_callback(void*);
 
 #endif  // A0_GO_COMMON_ADAPTER_H
