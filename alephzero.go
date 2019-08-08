@@ -24,7 +24,7 @@ func errorFrom(err C.errno_t) error {
 
 //export a0go_alloc
 func a0go_alloc(idPtr unsafe.Pointer, size C.size_t, out *C.a0_buf_t) {
-	allocRegistry[*(*int)(idPtr)](size, out)
+	allocRegistry[int(*(*C.int)(idPtr))](size, out)
 }
 
 func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id int) {
@@ -47,18 +47,22 @@ type Packet struct {
 	goMem []byte
 }
 
-func NewPacket(headers []Header, payload []byte) (pkt Packet, err error) {
-	// TODO: What if payload is 0?
-	var c_payload C.a0_buf_t
-	c_payload.size = C.size_t(len(payload))
-	c_payload.ptr = (*C.uint8_t)(&payload[0])
+func NewPacket(hdrs []Header, payload []byte) (pkt Packet, err error) {
+	// TODO: What if payload is empty?
+	var cPayload C.a0_buf_t
+	cPayload.size = C.size_t(len(payload))
+	cPayload.ptr = (*C.uint8_t)(&payload[0])
 
-	hdrs := make([]C.a0_packet_header_t, len(headers))
-	for i, hdr := range headers {
-		hdrs[i].key.size = C.size_t(len(hdr.Key))
-		hdrs[i].key.ptr = (*C.uint8_t)(&hdr.Key[0])
-		hdrs[i].val.size = C.size_t(len(hdr.Val))
-		hdrs[i].val.ptr = (*C.uint8_t)(&hdr.Val[0])
+	// TODO: What if headers are empty?
+	cHdrs := C.malloc(C.size_t(len(hdrs) * int(unsafe.Sizeof(C.a0_packet_header_t{}))))
+	defer C.free(cHdrs)
+
+	for i, hdr := range hdrs {
+		cHdr := (*[1<<30]C.a0_packet_header_t)(cHdrs)[i]
+		cHdr.key.size = C.size_t(len(hdr.Key))
+		cHdr.key.ptr = (*C.uint8_t)(&hdr.Key[0])
+		cHdr.val.size = C.size_t(len(hdr.Val))
+		cHdr.val.ptr = (*C.uint8_t)(&hdr.Val[0])
 	}
 
 	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
@@ -69,9 +73,9 @@ func NewPacket(headers []Header, payload []byte) (pkt Packet, err error) {
 	defer unregisterAlloc(allocId)
 
 	err = errorFrom(C.a0go_packet_build(
-		C.size_t(len(headers)),
-		&hdrs[0],
-		c_payload,
+		C.size_t(len(hdrs)),
+		(*C.a0_packet_header_t)(cHdrs),
+		cPayload,
 		C.int(allocId),
 		&pkt.cPkt))
 

@@ -3,6 +3,7 @@
 
 #include <a0/packet.h>
 // #include <a0/pubsub.h>
+#include <stdlib.h>
 
 extern void a0go_alloc(void*, size_t, a0_buf_t*);
 // extern void a0go_callback(void*);
