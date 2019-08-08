@@ -46,7 +46,7 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		C.size_t(len(hdrs)),
 		(*C.a0_packet_header_t)(cHdrs),
 		cPayload,
-		C.int(allocId),
+		C.uintptr_t(allocId),
 		&pkt.cPkt))
 
 	return

@@ -51,7 +51,7 @@ func NewSubscriberSyncUnmapped(container, topic string, readStart SubscriberRead
 	topicCStr := C.CString(topic)
 	defer C.free(unsafe.Pointer(topicCStr))
 
-	err = errorFrom(C.a0_subscriber_sync_init_unmapped(&ss.cSubSync, containerCStr, topicCStr, readStart, readNext))
+	err = errorFrom(C.a0_subscriber_sync_init_unmapped(&ss.cSubSync, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
 	return
 }
 
@@ -60,7 +60,7 @@ func (ss *SubscriberSync) Close() error {
 }
 
 func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
-	err = errorFrom(C.a0_subscriber_sync_has_next(&ss.cSubSync, &hasNext))
+	err = errorFrom(C.a0_subscriber_sync_has_next(&ss.cSubSync, (*C.bool)(&hasNext)))
 	return
 }
 
@@ -72,36 +72,36 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 	})
 	defer unregisterAlloc(allocId)
 
-	err = errorFrom(C.a0go_subscriber_sync_next(&ss.cSubSync, allocId, &pkt.cPkt))
+	err = errorFrom(C.a0go_subscriber_sync_next(&ss.cSubSync, C.uintptr_t(allocId), &pkt.cPkt))
 	return
 }
 
 var (
 	// TODO: make thread safe.
-	subscriberCallbackRegistry = make(map[int]func(C.a0_packet_t))
-	nextSubscriberCallbackId   int
+	subscriberCallbackRegistry = make(map[uintptr]func(C.a0_packet_t))
+	nextSubscriberCallbackId   uintptr
 )
 
 //export a0go_subscriber_callback
-func a0go_subscriber_callback(idPtr unsafe.Pointer, cPkt C.a0_packet_t) {
-	allocRegistry[int(*(*C.int)(idPtr))](size, cPkt)
+func a0go_subscriber_callback(id unsafe.Pointer, cPkt C.a0_packet_t) {
+	subscriberCallbackRegistry[uintptr(id)](cPkt)
 }
 
-func registerSubscriberCallback(fn func(C.a0_packet_t)) (id int) {
+func registerSubscriberCallback(fn func(C.a0_packet_t)) (id uintptr) {
 	id = nextSubscriberCallbackId
 	nextSubscriberCallbackId++
 	subscriberCallbackRegistry[id] = fn
 	return
 }
 
-func unregisterSubscriberCallback(id int) {
+func unregisterSubscriberCallback(id uintptr) {
 	delete(subscriberCallbackRegistry, id)
 }
 
 type Subscriber struct {
 	cSub                 C.a0_subscriber_t
-	allocId              int
-	subscriberCallbackId int
+	allocId              uintptr
+	subscriberCallbackId uintptr
 	activePkt            Packet
 }
 
@@ -123,11 +123,14 @@ func NewSubscriberUnmapped(container, topic string, readStart SubscriberReadStar
 	topicCStr := C.CString(topic)
 	defer C.free(unsafe.Pointer(topicCStr))
 
-	err = errorFrom(C.a0go_subscriber_init_unmapped(&s.cSub, containerCStr, topicCStr, readStart, readNext, s.allocId, s.subscriberCallbackId))
+	err = errorFrom(C.a0go_subscriber_init_unmapped(&s.cSub, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.subscriberCallbackId)))
 	return
 }
 
-func (ss *Subscriber) Close() error {
-	callbackId = registerCallback(func() {})
-	return errorFrom(C.a0go_subscriber_close(&s.cSub, callbackId))
+func (s *Subscriber) Close() error {
+	var callbackId uintptr
+	callbackId = registerCallback(func() {
+		unregisterCallback(callbackId)
+	})
+	return errorFrom(C.a0go_subscriber_close(&s.cSub, C.uintptr_t(callbackId)))
 }
