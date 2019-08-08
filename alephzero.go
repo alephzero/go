@@ -1,6 +1,6 @@
 package alephzero
 
-// #cgo pkg-config: libalephzero
+// #cgo pkg-config: alephzero
 // #include "adapter.h"
 import "C"
 
