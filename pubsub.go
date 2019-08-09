@@ -8,6 +8,7 @@ package alephzero
 import "C"
 
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -80,17 +81,22 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 }
 
 var (
-	// TODO: make thread safe.
-	subscriberCallbackRegistry = make(map[uintptr]func(C.a0_packet_t))
-	nextSubscriberCallbackId   uintptr
+	subscriberCallbackRegistry     = make(map[uintptr]func(C.a0_packet_t))
+	subscriberCallbackRegistryLock = sync.Mutex{}
+	nextSubscriberCallbackId       uintptr
 )
 
 //export a0go_subscriber_callback
 func a0go_subscriber_callback(id unsafe.Pointer, c C.a0_packet_t) {
+	// TODO: Should this be a reader lock?
+	subscriberCallbackRegistryLock.Lock()
+	defer subscriberCallbackRegistryLock.Unlock()
 	subscriberCallbackRegistry[uintptr(id)](c)
 }
 
 func registerSubscriberCallback(fn func(C.a0_packet_t)) (id uintptr) {
+	subscriberCallbackRegistryLock.Lock()
+	defer subscriberCallbackRegistryLock.Unlock()
 	id = nextSubscriberCallbackId
 	nextSubscriberCallbackId++
 	subscriberCallbackRegistry[id] = fn
@@ -98,6 +104,8 @@ func registerSubscriberCallback(fn func(C.a0_packet_t)) (id uintptr) {
 }
 
 func unregisterSubscriberCallback(id uintptr) {
+	subscriberCallbackRegistryLock.Lock()
+	defer subscriberCallbackRegistryLock.Unlock()
 	delete(subscriberCallbackRegistry, id)
 }
 

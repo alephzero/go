@@ -8,6 +8,7 @@ package alephzero
 import "C"
 
 import (
+	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -24,17 +25,22 @@ func errorFrom(err C.errno_t) error {
 ///////////
 
 var (
-	// TODO: make thread safe.
-	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
-	nextAllocId   uintptr
+	allocRegistry     = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
+	allocRegistryLock = sync.Mutex{}
+	nextAllocId       uintptr
 )
 
 //export a0go_alloc
 func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) {
+	// TODO: Should this be a reader lock?
+	allocRegistryLock.Lock()
+	defer allocRegistryLock.Unlock()
 	allocRegistry[uintptr(id)](size, out)
 }
 
 func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
+	allocRegistryLock.Lock()
+	defer allocRegistryLock.Unlock()
 	id = nextAllocId
 	nextAllocId++
 	allocRegistry[id] = fn
@@ -42,6 +48,8 @@ func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
 }
 
 func unregisterAlloc(id uintptr) {
+	allocRegistryLock.Lock()
+	defer allocRegistryLock.Unlock()
 	delete(allocRegistry, id)
 }
 
@@ -50,17 +58,22 @@ func unregisterAlloc(id uintptr) {
 //////////////
 
 var (
-	// TODO: make thread safe.
-	callbackRegistry = make(map[uintptr]func())
-	nextCallbackId   uintptr
+	callbackRegistry     = make(map[uintptr]func())
+	callbackRegistryLock = sync.Mutex{}
+	nextCallbackId       uintptr
 )
 
 //export a0go_callback
 func a0go_callback(id unsafe.Pointer) {
+	// TODO: Should this be a reader lock?
+	callbackRegistryLock.Lock()
+	defer callbackRegistryLock.Unlock()
 	callbackRegistry[uintptr(id)]()
 }
 
 func registerCallback(fn func()) (id uintptr) {
+	callbackRegistryLock.Lock()
+	defer callbackRegistryLock.Unlock()
 	id = nextCallbackId
 	nextCallbackId++
 	callbackRegistry[id] = fn
@@ -68,5 +81,7 @@ func registerCallback(fn func()) (id uintptr) {
 }
 
 func unregisterCallback(id uintptr) {
+	callbackRegistryLock.Lock()
+	defer callbackRegistryLock.Unlock()
 	delete(callbackRegistry, id)
 }
