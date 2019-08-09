@@ -13,7 +13,7 @@ type PacketHeader struct {
 }
 
 type Packet struct {
-	cPkt  C.a0_packet_t
+	c     C.a0_packet_t
 	goMem []byte
 }
 
@@ -39,7 +39,6 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		}
 	}
 
-
 	// Package payload.
 	var cPayload C.a0_buf_t
 	cPayload.size = C.size_t(len(payload))
@@ -63,7 +62,7 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		(*C.a0_packet_header_t)(cHdrs),
 		cPayload,
 		C.uintptr_t(allocId),
-		&pkt.cPkt))
+		&pkt.c))
 
 	return
 }
@@ -74,7 +73,7 @@ func (p *Packet) Bytes() ([]byte, error) {
 
 func (p *Packet) NumHeaders() (cnt int, err error) {
 	var ucnt C.size_t
-	err = errorFrom(C.a0_packet_num_headers(p.cPkt, &ucnt))
+	err = errorFrom(C.a0_packet_num_headers(p.c, &ucnt))
 	if err != nil {
 		return
 	}
@@ -85,7 +84,7 @@ func (p *Packet) NumHeaders() (cnt int, err error) {
 func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 	var cHdr C.a0_packet_header_t
 
-	if err = errorFrom(C.a0_packet_header(p.cPkt, C.size_t(idx), &cHdr)); err != nil {
+	if err = errorFrom(C.a0_packet_header(p.c, C.size_t(idx), &cHdr)); err != nil {
 		return
 	}
 
@@ -98,7 +97,7 @@ func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 func (p *Packet) Payload() (payload []byte, err error) {
 	var out C.a0_buf_t
 
-	if err = errorFrom(C.a0_packet_payload(p.cPkt, &out)); err != nil {
+	if err = errorFrom(C.a0_packet_payload(p.c, &out)); err != nil {
 		return
 	}
 

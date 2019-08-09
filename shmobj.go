@@ -14,7 +14,7 @@ type ShmObjOptions struct {
 }
 
 type ShmObj struct {
-	cShmObj C.a0_shmobj_t
+	c C.a0_shmobj_t
 }
 
 func ShmOpen(path string, opts *ShmObjOptions) (so ShmObj, err error) {
@@ -25,7 +25,7 @@ func ShmOpen(path string, opts *ShmObjOptions) (so ShmObj, err error) {
 	if opts != nil {
 		cOpts.size = C.off_t(opts.Size)
 	}
-	err = errorFrom(C.a0_shmobj_open(pathCStr, &cOpts, &so.cShmObj))
+	err = errorFrom(C.a0_shmobj_open(pathCStr, &cOpts, &so.c))
 	return
 }
 
@@ -37,5 +37,5 @@ func ShmUnlink(path string) error {
 }
 
 func (so *ShmObj) Close() error {
-	return errorFrom(C.a0_shmobj_close(&so.cShmObj))
+	return errorFrom(C.a0_shmobj_close(&so.c))
 }

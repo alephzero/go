@@ -9,20 +9,20 @@ import (
 )
 
 type Publisher struct {
-	cPub C.a0_publisher_t
+	c C.a0_publisher_t
 }
 
 func NewPublisherUnmapped(container, topic string) (p Publisher, err error) {
-	err = errorFrom(C.a0_publisher_init_unmapped(&p.cPub, C.CString(container), C.CString(topic)))
+	err = errorFrom(C.a0_publisher_init_unmapped(&p.c, C.CString(container), C.CString(topic)))
 	return
 }
 
 func (p *Publisher) Close() error {
-	return errorFrom(C.a0_publisher_close(&p.cPub))
+	return errorFrom(C.a0_publisher_close(&p.c))
 }
 
 func (p *Publisher) Pub(pkt Packet) error {
-	return errorFrom(C.a0_pub(&p.cPub, pkt.cPkt))
+	return errorFrom(C.a0_pub(&p.c, pkt.c))
 }
 
 type SubscriberReadStart int
@@ -41,7 +41,7 @@ const (
 )
 
 type SubscriberSync struct {
-	cSubSync C.a0_subscriber_sync_t
+	c C.a0_subscriber_sync_t
 }
 
 func NewSubscriberSyncUnmapped(container, topic string, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
@@ -51,16 +51,16 @@ func NewSubscriberSyncUnmapped(container, topic string, readStart SubscriberRead
 	topicCStr := C.CString(topic)
 	defer C.free(unsafe.Pointer(topicCStr))
 
-	err = errorFrom(C.a0_subscriber_sync_init_unmapped(&ss.cSubSync, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
+	err = errorFrom(C.a0_subscriber_sync_init_unmapped(&ss.c, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
 	return
 }
 
 func (ss *SubscriberSync) Close() error {
-	return errorFrom(C.a0_subscriber_sync_close(&ss.cSubSync))
+	return errorFrom(C.a0_subscriber_sync_close(&ss.c))
 }
 
 func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
-	err = errorFrom(C.a0_subscriber_sync_has_next(&ss.cSubSync, (*C.bool)(&hasNext)))
+	err = errorFrom(C.a0_subscriber_sync_has_next(&ss.c, (*C.bool)(&hasNext)))
 	return
 }
 
@@ -72,7 +72,7 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 	})
 	defer unregisterAlloc(allocId)
 
-	err = errorFrom(C.a0go_subscriber_sync_next(&ss.cSubSync, C.uintptr_t(allocId), &pkt.cPkt))
+	err = errorFrom(C.a0go_subscriber_sync_next(&ss.c, C.uintptr_t(allocId), &pkt.c))
 	return
 }
 
@@ -83,8 +83,8 @@ var (
 )
 
 //export a0go_subscriber_callback
-func a0go_subscriber_callback(id unsafe.Pointer, cPkt C.a0_packet_t) {
-	subscriberCallbackRegistry[uintptr(id)](cPkt)
+func a0go_subscriber_callback(id unsafe.Pointer, c C.a0_packet_t) {
+	subscriberCallbackRegistry[uintptr(id)](c)
 }
 
 func registerSubscriberCallback(fn func(C.a0_packet_t)) (id uintptr) {
@@ -99,7 +99,7 @@ func unregisterSubscriberCallback(id uintptr) {
 }
 
 type Subscriber struct {
-	cSub                 C.a0_subscriber_t
+	c                    C.a0_subscriber_t
 	allocId              uintptr
 	subscriberCallbackId uintptr
 	activePkt            Packet
@@ -123,7 +123,7 @@ func NewSubscriberUnmapped(container, topic string, readStart SubscriberReadStar
 	topicCStr := C.CString(topic)
 	defer C.free(unsafe.Pointer(topicCStr))
 
-	err = errorFrom(C.a0go_subscriber_init_unmapped(&s.cSub, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.subscriberCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init_unmapped(&s.c, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.subscriberCallbackId)))
 	return
 }
 
@@ -132,5 +132,5 @@ func (s *Subscriber) Close() error {
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
 	})
-	return errorFrom(C.a0go_subscriber_close(&s.cSub, C.uintptr_t(callbackId)))
+	return errorFrom(C.a0go_subscriber_close(&s.c, C.uintptr_t(callbackId)))
 }
