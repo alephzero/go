@@ -16,8 +16,8 @@ type Publisher struct {
 	c C.a0_publisher_t
 }
 
-func NewPublisherUnmapped(container, topic string) (p Publisher, err error) {
-	err = errorFrom(C.a0_publisher_init_unmapped(&p.c, C.CString(container), C.CString(topic)))
+func NewPublisher(shm ShmObj) (p Publisher, err error) {
+	err = errorFrom(C.a0_publisher_init(&p.c, shm.c))
 	return
 }
 
@@ -48,14 +48,8 @@ type SubscriberSync struct {
 	c C.a0_subscriber_sync_t
 }
 
-func NewSubscriberSyncUnmapped(container, topic string, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
-	containerCStr := C.CString(container)
-	defer C.free(unsafe.Pointer(containerCStr))
-
-	topicCStr := C.CString(topic)
-	defer C.free(unsafe.Pointer(topicCStr))
-
-	err = errorFrom(C.a0_subscriber_sync_init_unmapped(&ss.c, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
+func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
+	err = errorFrom(C.a0_subscriber_sync_init(&ss.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
 	return
 }
 
@@ -116,7 +110,7 @@ type Subscriber struct {
 	activePkt            Packet
 }
 
-func NewSubscriberUnmapped(container, topic string, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {
+func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		s.activePkt.goMem = make([]byte, int(size))
 		out.size = size
@@ -128,13 +122,7 @@ func NewSubscriberUnmapped(container, topic string, readStart SubscriberReadStar
 		s.activePkt.goMem = nil
 	})
 
-	containerCStr := C.CString(container)
-	defer C.free(unsafe.Pointer(containerCStr))
-
-	topicCStr := C.CString(topic)
-	defer C.free(unsafe.Pointer(topicCStr))
-
-	err = errorFrom(C.a0go_subscriber_init_unmapped(&s.c, containerCStr, topicCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.subscriberCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.subscriberCallbackId)))
 	return
 }
 

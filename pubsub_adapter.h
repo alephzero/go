@@ -15,13 +15,12 @@ static inline errno_t a0go_subscriber_sync_next(a0_subscriber_sync_t* sub_sync, 
   return a0_subscriber_sync_next(sub_sync, alloc, pkt);
 }
 
-static inline errno_t a0go_subscriber_init_unmapped(a0_subscriber_t* sub,
-                                                    const char* container,
-                                                    const char* topic,
-                                                    a0_subscriber_read_start_t read_start,
-                                                    a0_subscriber_read_next_t read_next,
-                                                    uintptr_t alloc_id,
-                                                    uintptr_t subscriber_callback_id) {
+static inline errno_t a0go_subscriber_init(a0_subscriber_t* sub,
+                                           a0_shmobj_t shmobj,
+                                           a0_subscriber_read_start_t read_start,
+                                           a0_subscriber_read_next_t read_next,
+                                           uintptr_t alloc_id,
+                                           uintptr_t subscriber_callback_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,
@@ -30,7 +29,7 @@ static inline errno_t a0go_subscriber_init_unmapped(a0_subscriber_t* sub,
       .user_data = (void*)subscriber_callback_id,
       .fn = a0go_subscriber_callback,
   };
-  return a0_subscriber_init_unmapped(sub, container, topic, read_start, read_next, alloc, subscriber_callback);
+  return a0_subscriber_init(sub, shmobj, read_start, read_next, alloc, subscriber_callback);
 }
 
 static inline errno_t a0go_subscriber_close(a0_subscriber_t* sub, uintptr_t callback_id) {
