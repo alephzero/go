@@ -1,7 +1,10 @@
 package alephzero
 
-// #cgo pkg-config: alephzero
-// #include "packet_adapter.h"
+/*
+#cgo pkg-config: alephzero
+#include "packet_adapter.h"
+#include <stdlib.h>  // free
+*/
 import "C"
 
 import (

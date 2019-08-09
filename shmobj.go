@@ -1,8 +1,10 @@
 package alephzero
 
-// #cgo pkg-config: alephzero
-// #include <a0/shmobj.h>
-// #include <stdlib.h>
+/*
+#cgo pkg-config: alephzero
+#include <a0/shmobj.h>
+#include <stdlib.h>  // free
+*/
 import "C"
 
 import (

@@ -2,7 +2,6 @@
 #define A0_GO_PACKET_ADAPTER_H
 
 #include <a0/packet.h>
-#include <stdlib.h>
 
 #include "common_adapter.h"
 

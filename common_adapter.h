@@ -2,8 +2,6 @@
 #define A0_GO_COMMON_ADAPTER_H
 
 #include <a0/common.h>
-#include <a0/packet.h>
-#include <stdlib.h>
 
 extern void a0go_alloc(void*, size_t, a0_buf_t*);
 extern void a0go_callback(void*);
