@@ -8,6 +8,7 @@ package alephzero
 import "C"
 
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -30,24 +31,13 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		for i, hdr := range hdrs {
 			cHdr := &(*[1 << 30]C.a0_packet_header_t)(cHdrs)[i]
 
-			cHdr.key.size = C.size_t(len(hdr.Key))
-			if cHdr.key.size > 0 {
-				cHdr.key.ptr = (*C.uint8_t)(&hdr.Key[0])
-			}
-
-			cHdr.val.size = C.size_t(len(hdr.Val))
-			if cHdr.val.size > 0 {
-				cHdr.val.ptr = (*C.uint8_t)(&hdr.Val[0])
-			}
+			cHdr.key = cBufFrom(hdr.Key)
+			cHdr.val = cBufFrom(hdr.Val)
 		}
 	}
 
 	// Package payload.
-	var cPayload C.a0_buf_t
-	cPayload.size = C.size_t(len(payload))
-	if cPayload.size > 0 {
-		cPayload.ptr = (*C.uint8_t)(&payload[0])
-	}
+	cPayload := cBufFrom(payload)
 
 	// Create allocator.
 	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
@@ -70,6 +60,14 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 	return
 }
 
+func PacketIdKey() []byte {
+	return goBufFrom(C.a0_packet_id_key())
+}
+
+func PacketDepKey() []byte {
+	return goBufFrom(C.a0_packet_dep_key())
+}
+
 func (p *Packet) Bytes() ([]byte, error) {
 	return p.goMem, nil
 }
@@ -86,25 +84,66 @@ func (p *Packet) NumHeaders() (cnt int, err error) {
 
 func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 	var cHdr C.a0_packet_header_t
-
 	if err = errorFrom(C.a0_packet_header(p.c, C.size_t(idx), &cHdr)); err != nil {
 		return
 	}
+	hdr.Key = goBufFrom(cHdr.key)
+	hdr.Key = goBufFrom(cHdr.val)
+	return
+}
 
-	hdr.Key = (*[1 << 30]byte)(unsafe.Pointer(cHdr.key.ptr))[:int(cHdr.key.size):int(cHdr.key.size)]
-	hdr.Val = (*[1 << 30]byte)(unsafe.Pointer(cHdr.val.ptr))[:int(cHdr.val.size):int(cHdr.val.size)]
-
+func (p *Packet) FindHeader(key []byte) (val []byte, err error) {
+	var cVal C.a0_buf_t
+	if err = errorFrom(C.a0_packet_find_header(p.c, cBufFrom(key), &cVal)); err != nil {
+		return
+	}
+	val = goBufFrom(cVal)
 	return
 }
 
 func (p *Packet) Payload() (payload []byte, err error) {
-	var out C.a0_buf_t
-
-	if err = errorFrom(C.a0_packet_payload(p.c, &out)); err != nil {
+	var cBuf C.a0_buf_t
+	if err = errorFrom(C.a0_packet_payload(p.c, &cBuf)); err != nil {
 		return
 	}
-
-	payload = (*[1 << 30]byte)(unsafe.Pointer(out.ptr))[:int(out.size):int(out.size)]
-
+	payload = goBufFrom(cBuf)
 	return
+}
+
+func (p *Packet) Id() (val []byte, err error) {
+	var cVal C.a0_buf_t
+	if err = errorFrom(C.a0_packet_id(p.c, &cVal)); err != nil {
+		return
+	}
+	val = goBufFrom(cVal)
+	return
+}
+
+var (
+	packetCallbackRegistry     = make(map[uintptr]func(C.a0_packet_t))
+	packetCallbackRegistryLock = sync.Mutex{}
+	nextPacketCallbackId       uintptr
+)
+
+//export a0go_packet_callback
+func a0go_packet_callback(id unsafe.Pointer, c C.a0_packet_t) {
+	// TODO: Should this be a reader lock?
+	packetCallbackRegistryLock.Lock()
+	defer packetCallbackRegistryLock.Unlock()
+	packetCallbackRegistry[uintptr(id)](c)
+}
+
+func registerPacketCallback(fn func(C.a0_packet_t)) (id uintptr) {
+	packetCallbackRegistryLock.Lock()
+	defer packetCallbackRegistryLock.Unlock()
+	id = nextPacketCallbackId
+	nextPacketCallbackId++
+	packetCallbackRegistry[id] = fn
+	return
+}
+
+func unregisterPacketCallback(id uintptr) {
+	packetCallbackRegistryLock.Lock()
+	defer packetCallbackRegistryLock.Unlock()
+	delete(packetCallbackRegistry, id)
 }

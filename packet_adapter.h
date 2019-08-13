@@ -17,4 +17,6 @@ static inline errno_t a0go_packet_build(size_t num_headers,
   return a0_packet_build(num_headers, headers, payload, alloc, out);
 }
 
+extern void a0go_packet_callback(void*, a0_packet_t);
+
 #endif  // A0_GO_PACKET_ADAPTER_H

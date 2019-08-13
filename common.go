@@ -20,6 +20,18 @@ func errorFrom(err C.errno_t) error {
 	return syscall.Errno(err)
 }
 
+func goBufFrom(b C.a0_buf_t) []byte {
+	return (*[1 << 30]byte)(unsafe.Pointer(b.ptr))[:int(b.size):int(b.size)]
+}
+
+func cBufFrom(b []byte) (out C.a0_buf_t) {
+	out.size = C.size_t(len(b))
+	if out.size > 0 {
+		out.ptr = (*C.uint8_t)(&b[0])
+	}
+	return
+}
+
 ///////////
 // Alloc //
 ///////////

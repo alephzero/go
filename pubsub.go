@@ -7,11 +7,6 @@ package alephzero
 */
 import "C"
 
-import (
-	"sync"
-	"unsafe"
-)
-
 type Publisher struct {
 	c C.a0_publisher_t
 }
@@ -74,40 +69,11 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 	return
 }
 
-var (
-	subscriberCallbackRegistry     = make(map[uintptr]func(C.a0_packet_t))
-	subscriberCallbackRegistryLock = sync.Mutex{}
-	nextSubscriberCallbackId       uintptr
-)
-
-//export a0go_subscriber_callback
-func a0go_subscriber_callback(id unsafe.Pointer, c C.a0_packet_t) {
-	// TODO: Should this be a reader lock?
-	subscriberCallbackRegistryLock.Lock()
-	defer subscriberCallbackRegistryLock.Unlock()
-	subscriberCallbackRegistry[uintptr(id)](c)
-}
-
-func registerSubscriberCallback(fn func(C.a0_packet_t)) (id uintptr) {
-	subscriberCallbackRegistryLock.Lock()
-	defer subscriberCallbackRegistryLock.Unlock()
-	id = nextSubscriberCallbackId
-	nextSubscriberCallbackId++
-	subscriberCallbackRegistry[id] = fn
-	return
-}
-
-func unregisterSubscriberCallback(id uintptr) {
-	subscriberCallbackRegistryLock.Lock()
-	defer subscriberCallbackRegistryLock.Unlock()
-	delete(subscriberCallbackRegistry, id)
-}
-
 type Subscriber struct {
-	c                    C.a0_subscriber_t
-	allocId              uintptr
-	subscriberCallbackId uintptr
-	activePkt            Packet
+	c                C.a0_subscriber_t
+	allocId          uintptr
+	packetCallbackId uintptr
+	activePkt        Packet
 }
 
 func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {
@@ -117,12 +83,12 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 		out.ptr = (*C.uint8_t)(&s.activePkt.goMem[0])
 	})
 
-	s.subscriberCallbackId = registerSubscriberCallback(func(_ C.a0_packet_t) {
+	s.packetCallbackId = registerPacketCallback(func(_ C.a0_packet_t) {
 		callback(s.activePkt)
 		s.activePkt.goMem = nil
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.subscriberCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
