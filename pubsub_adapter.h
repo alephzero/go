@@ -6,7 +6,9 @@
 #include "common_adapter.h"
 #include "packet_adapter.h"
 
-static inline errno_t a0go_subscriber_sync_next(a0_subscriber_sync_t* sub_sync, uintptr_t alloc_id, a0_packet_t* pkt) {
+static inline errno_t a0go_subscriber_sync_next(a0_subscriber_sync_t* sub_sync,
+                                                uintptr_t alloc_id,
+                                                a0_packet_t* pkt) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,

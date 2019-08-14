@@ -96,6 +96,8 @@ func (s *Subscriber) Close() error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
+		unregisterPacketCallback(s.packetCallbackId)
+		unregisterAlloc(s.allocId)
 	})
 	return errorFrom(C.a0go_subscriber_close(&s.c, C.uintptr_t(callbackId)))
 }
