@@ -8,6 +8,7 @@ package alephzero
 import "C"
 
 import (
+	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -36,17 +37,22 @@ func cBufFrom(b []byte) (out C.a0_buf_t) {
 ///////////
 
 var (
-	// TODO: Thread safety.
-	allocRegistry     = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
-	nextAllocId       uintptr
+	allocMutex    = sync.Mutex{}
+	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
+	nextAllocId   uintptr
 )
 
 //export a0go_alloc
 func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) {
-	allocRegistry[uintptr(id)](size, out)
+	allocMutex.Lock()
+	fn := allocRegistry[uintptr(id)]
+	allocMutex.Unlock()
+	fn(size, out)
 }
 
 func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
+	allocMutex.Lock()
+	defer allocMutex.Unlock()
 	id = nextAllocId
 	nextAllocId++
 	allocRegistry[id] = fn
@@ -54,6 +60,8 @@ func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
 }
 
 func unregisterAlloc(id uintptr) {
+	allocMutex.Lock()
+	defer allocMutex.Unlock()
 	delete(allocRegistry, id)
 }
 
@@ -62,17 +70,22 @@ func unregisterAlloc(id uintptr) {
 //////////////
 
 var (
-	// TODO: Thread safety.
-	callbackRegistry     = make(map[uintptr]func())
-	nextCallbackId       uintptr
+	callbackMutex    = sync.Mutex{}
+	callbackRegistry = make(map[uintptr]func())
+	nextCallbackId   uintptr
 )
 
 //export a0go_callback
 func a0go_callback(id unsafe.Pointer) {
-	callbackRegistry[uintptr(id)]()
+	callbackMutex.Lock()
+	fn := callbackRegistry[uintptr(id)]
+	callbackMutex.Unlock()
+	fn()
 }
 
 func registerCallback(fn func()) (id uintptr) {
+	callbackMutex.Lock()
+	defer callbackMutex.Unlock()
 	id = nextCallbackId
 	nextCallbackId++
 	callbackRegistry[id] = fn
@@ -80,5 +93,7 @@ func registerCallback(fn func()) (id uintptr) {
 }
 
 func unregisterCallback(id uintptr) {
+	callbackMutex.Lock()
+	defer callbackMutex.Unlock()
 	delete(callbackRegistry, id)
 }

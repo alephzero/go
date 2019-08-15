@@ -8,6 +8,7 @@ package alephzero
 import "C"
 
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -21,17 +22,22 @@ func (req *RpcRequest) Packet() (p Packet) {
 }
 
 var (
-	// TODO: Thread safety.
-	rpcServerOnRequestRegistry     = make(map[uintptr]func(C.a0_rpc_request_t))
-	nextRpcServerOnRequestId       uintptr
+	rpcServerOnRequestMutex    = sync.Mutex
+	rpcServerOnRequestRegistry = make(map[uintptr]func(C.a0_rpc_request_t))
+	nextRpcServerOnRequestId   uintptr
 )
 
 //export a0go_rpc_server_onrequest
 func a0go_rpc_server_onrequest(id unsafe.Pointer, req C.a0_rpc_request_t) {
-	rpcServerOnRequestRegistry[uintptr(id)](req)
+	rpcServerOnRequestMutex.Lock()
+	fn := rpcServerOnRequestRegistry[uintptr(id)]
+	rpcServerOnRequestMutex.Unlock()
+	fn(req)
 }
 
 func registerRpcServerOnRequest(fn func(C.a0_rpc_request_t)) (id uintptr) {
+	rpcServerOnRequestMutex.Lock()
+	defer rpcServerOnRequestMutex.Unlock()
 	id = nextRpcServerOnRequestId
 	nextRpcServerOnRequestId++
 	rpcServerOnRequestRegistry[id] = fn
@@ -39,6 +45,8 @@ func registerRpcServerOnRequest(fn func(C.a0_rpc_request_t)) (id uintptr) {
 }
 
 func unregisterRpcServerOnRequest(id uintptr) {
+	rpcServerOnRequestMutex.Lock()
+	defer rpcServerOnRequestMutex.Unlock()
 	delete(rpcServerOnRequestRegistry, id)
 }
 
