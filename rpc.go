@@ -22,7 +22,7 @@ func (req *RpcRequest) Packet() (p Packet) {
 }
 
 var (
-	rpcServerOnRequestMutex    = sync.Mutex
+	rpcServerOnRequestMutex    = sync.Mutex{}
 	rpcServerOnRequestRegistry = make(map[uintptr]func(C.a0_rpc_request_t))
 	nextRpcServerOnRequestId   uintptr
 )
