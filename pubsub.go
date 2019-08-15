@@ -35,8 +35,8 @@ const (
 type SubscriberReadNext int
 
 const (
-	READ_READ_NEXT_SEQUENTIAL SubscriberReadNext = C.A0_READ_NEXT_SEQUENTIAL
-	READ_READ_NEXT_RECENT                        = C.A0_READ_NEXT_RECENT
+	READ_NEXT_SEQUENTIAL SubscriberReadNext = C.A0_READ_NEXT_SEQUENTIAL
+	READ_NEXT_RECENT                        = C.A0_READ_NEXT_RECENT
 )
 
 type SubscriberSync struct {
