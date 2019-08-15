@@ -82,6 +82,7 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 		s.activePkt.goMem = make([]byte, int(size))
 		out.size = size
 		out.ptr = (*C.uint8_t)(&s.activePkt.goMem[0])
+		s.activePkt.c = *out
 	})
 
 	s.packetCallbackId = registerPacketCallback(func(_ C.a0_packet_t) {
