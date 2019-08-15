@@ -8,7 +8,6 @@ package alephzero
 import "C"
 
 import (
-	"sync"
 	"unsafe"
 )
 
@@ -22,22 +21,17 @@ func (req *RpcRequest) Packet() (p Packet) {
 }
 
 var (
+	// TODO: Thread safety.
 	rpcServerOnRequestRegistry     = make(map[uintptr]func(C.a0_rpc_request_t))
-	rpcServerOnRequestRegistryLock = sync.Mutex{}
 	nextRpcServerOnRequestId       uintptr
 )
 
 //export a0go_rpc_server_onrequest
 func a0go_rpc_server_onrequest(id unsafe.Pointer, req C.a0_rpc_request_t) {
-	// TODO: Should this be a reader lock?
-	rpcServerOnRequestRegistryLock.Lock()
-	defer rpcServerOnRequestRegistryLock.Unlock()
 	rpcServerOnRequestRegistry[uintptr(id)](req)
 }
 
 func registerRpcServerOnRequest(fn func(C.a0_rpc_request_t)) (id uintptr) {
-	rpcServerOnRequestRegistryLock.Lock()
-	defer rpcServerOnRequestRegistryLock.Unlock()
 	id = nextRpcServerOnRequestId
 	nextRpcServerOnRequestId++
 	rpcServerOnRequestRegistry[id] = fn
@@ -45,8 +39,6 @@ func registerRpcServerOnRequest(fn func(C.a0_rpc_request_t)) (id uintptr) {
 }
 
 func unregisterRpcServerOnRequest(id uintptr) {
-	rpcServerOnRequestRegistryLock.Lock()
-	defer rpcServerOnRequestRegistryLock.Unlock()
 	delete(rpcServerOnRequestRegistry, id)
 }
 

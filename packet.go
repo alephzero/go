@@ -8,7 +8,6 @@ package alephzero
 import "C"
 
 import (
-	"sync"
 	"unsafe"
 )
 
@@ -120,22 +119,17 @@ func (p *Packet) Id() (val []byte, err error) {
 }
 
 var (
+	// TODO: Thread safety.
 	packetCallbackRegistry     = make(map[uintptr]func(C.a0_packet_t))
-	packetCallbackRegistryLock = sync.Mutex{}
 	nextPacketCallbackId       uintptr
 )
 
 //export a0go_packet_callback
 func a0go_packet_callback(id unsafe.Pointer, c C.a0_packet_t) {
-	// TODO: Should this be a reader lock?
-	packetCallbackRegistryLock.Lock()
-	defer packetCallbackRegistryLock.Unlock()
 	packetCallbackRegistry[uintptr(id)](c)
 }
 
 func registerPacketCallback(fn func(C.a0_packet_t)) (id uintptr) {
-	packetCallbackRegistryLock.Lock()
-	defer packetCallbackRegistryLock.Unlock()
 	id = nextPacketCallbackId
 	nextPacketCallbackId++
 	packetCallbackRegistry[id] = fn
@@ -143,7 +137,5 @@ func registerPacketCallback(fn func(C.a0_packet_t)) (id uintptr) {
 }
 
 func unregisterPacketCallback(id uintptr) {
-	packetCallbackRegistryLock.Lock()
-	defer packetCallbackRegistryLock.Unlock()
 	delete(packetCallbackRegistry, id)
 }
