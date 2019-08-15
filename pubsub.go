@@ -62,6 +62,7 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 		pkt.goMem = make([]byte, int(size))
 		out.size = size
 		out.ptr = (*C.uint8_t)(&pkt.goMem[0])
+		pkt.c = *out
 	})
 	defer unregisterAlloc(allocId)
 
