@@ -35,8 +35,8 @@ const (
 type SubscriberReadNext int
 
 const (
-	READ_READ_NEXT_SEQUENTIAL SubscriberReadNext = C.A0_READ_NEXT_SEQUENTIAL
-	READ_READ_NEXT_RECENT                        = C.A0_READ_NEXT_RECENT
+	READ_NEXT_SEQUENTIAL SubscriberReadNext = C.A0_READ_NEXT_SEQUENTIAL
+	READ_NEXT_RECENT                        = C.A0_READ_NEXT_RECENT
 )
 
 type SubscriberSync struct {
@@ -62,6 +62,7 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 		pkt.goMem = make([]byte, int(size))
 		out.size = size
 		out.ptr = (*C.uint8_t)(&pkt.goMem[0])
+		pkt.c = *out
 	})
 	defer unregisterAlloc(allocId)
 
@@ -81,6 +82,7 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 		s.activePkt.goMem = make([]byte, int(size))
 		out.size = size
 		out.ptr = (*C.uint8_t)(&s.activePkt.goMem[0])
+		s.activePkt.c = *out
 	})
 
 	s.packetCallbackId = registerPacketCallback(func(_ C.a0_packet_t) {

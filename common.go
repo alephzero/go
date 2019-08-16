@@ -37,22 +37,22 @@ func cBufFrom(b []byte) (out C.a0_buf_t) {
 ///////////
 
 var (
-	allocRegistry     = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
-	allocRegistryLock = sync.Mutex{}
-	nextAllocId       uintptr
+	allocMutex    = sync.Mutex{}
+	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
+	nextAllocId   uintptr
 )
 
 //export a0go_alloc
 func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) {
-	// TODO: Should this be a reader lock?
-	allocRegistryLock.Lock()
-	defer allocRegistryLock.Unlock()
-	allocRegistry[uintptr(id)](size, out)
+	allocMutex.Lock()
+	fn := allocRegistry[uintptr(id)]
+	allocMutex.Unlock()
+	fn(size, out)
 }
 
 func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
-	allocRegistryLock.Lock()
-	defer allocRegistryLock.Unlock()
+	allocMutex.Lock()
+	defer allocMutex.Unlock()
 	id = nextAllocId
 	nextAllocId++
 	allocRegistry[id] = fn
@@ -60,8 +60,8 @@ func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
 }
 
 func unregisterAlloc(id uintptr) {
-	allocRegistryLock.Lock()
-	defer allocRegistryLock.Unlock()
+	allocMutex.Lock()
+	defer allocMutex.Unlock()
 	delete(allocRegistry, id)
 }
 
@@ -70,22 +70,22 @@ func unregisterAlloc(id uintptr) {
 //////////////
 
 var (
-	callbackRegistry     = make(map[uintptr]func())
-	callbackRegistryLock = sync.Mutex{}
-	nextCallbackId       uintptr
+	callbackMutex    = sync.Mutex{}
+	callbackRegistry = make(map[uintptr]func())
+	nextCallbackId   uintptr
 )
 
 //export a0go_callback
 func a0go_callback(id unsafe.Pointer) {
-	// TODO: Should this be a reader lock?
-	callbackRegistryLock.Lock()
-	defer callbackRegistryLock.Unlock()
-	callbackRegistry[uintptr(id)]()
+	callbackMutex.Lock()
+	fn := callbackRegistry[uintptr(id)]
+	callbackMutex.Unlock()
+	fn()
 }
 
 func registerCallback(fn func()) (id uintptr) {
-	callbackRegistryLock.Lock()
-	defer callbackRegistryLock.Unlock()
+	callbackMutex.Lock()
+	defer callbackMutex.Unlock()
 	id = nextCallbackId
 	nextCallbackId++
 	callbackRegistry[id] = fn
@@ -93,7 +93,7 @@ func registerCallback(fn func()) (id uintptr) {
 }
 
 func unregisterCallback(id uintptr) {
-	callbackRegistryLock.Lock()
-	defer callbackRegistryLock.Unlock()
+	callbackMutex.Lock()
+	defer callbackMutex.Unlock()
 	delete(callbackRegistry, id)
 }

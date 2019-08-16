@@ -120,22 +120,22 @@ func (p *Packet) Id() (val []byte, err error) {
 }
 
 var (
-	packetCallbackRegistry     = make(map[uintptr]func(C.a0_packet_t))
-	packetCallbackRegistryLock = sync.Mutex{}
-	nextPacketCallbackId       uintptr
+	packetCallbackMutex    = sync.Mutex{}
+	packetCallbackRegistry = make(map[uintptr]func(C.a0_packet_t))
+	nextPacketCallbackId   uintptr
 )
 
 //export a0go_packet_callback
 func a0go_packet_callback(id unsafe.Pointer, c C.a0_packet_t) {
-	// TODO: Should this be a reader lock?
-	packetCallbackRegistryLock.Lock()
-	defer packetCallbackRegistryLock.Unlock()
-	packetCallbackRegistry[uintptr(id)](c)
+	packetCallbackMutex.Lock()
+	fn := packetCallbackRegistry[uintptr(id)]
+	packetCallbackMutex.Unlock()
+	fn(c)
 }
 
 func registerPacketCallback(fn func(C.a0_packet_t)) (id uintptr) {
-	packetCallbackRegistryLock.Lock()
-	defer packetCallbackRegistryLock.Unlock()
+	packetCallbackMutex.Lock()
+	defer packetCallbackMutex.Unlock()
 	id = nextPacketCallbackId
 	nextPacketCallbackId++
 	packetCallbackRegistry[id] = fn
@@ -143,7 +143,7 @@ func registerPacketCallback(fn func(C.a0_packet_t)) (id uintptr) {
 }
 
 func unregisterPacketCallback(id uintptr) {
-	packetCallbackRegistryLock.Lock()
-	defer packetCallbackRegistryLock.Unlock()
+	packetCallbackMutex.Lock()
+	defer packetCallbackMutex.Unlock()
 	delete(packetCallbackRegistry, id)
 }
