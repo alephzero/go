@@ -72,8 +72,8 @@ func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 type Subscriber struct {
 	c                C.a0_subscriber_t
 	allocId          uintptr
-	packetCallbackId uintptr
 	activePkt        Packet
+	packetCallbackId uintptr
 }
 
 func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {

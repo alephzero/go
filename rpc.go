@@ -7,69 +7,32 @@ package alephzero
 */
 import "C"
 
-import (
-	"sync"
-	"unsafe"
-)
-
-type RpcRequest struct {
-	c C.a0_rpc_request_t
-}
-
-func (req *RpcRequest) Packet() (p Packet) {
-	p.c = req.c.pkt
-	return
-}
-
-var (
-	rpcServerOnRequestRegistry     = make(map[uintptr]func(C.a0_rpc_request_t))
-	rpcServerOnRequestRegistryLock = sync.Mutex{}
-	nextRpcServerOnRequestId       uintptr
-)
-
-//export a0go_rpc_server_onrequest
-func a0go_rpc_server_onrequest(id unsafe.Pointer, req C.a0_rpc_request_t) {
-	// TODO: Should this be a reader lock?
-	rpcServerOnRequestRegistryLock.Lock()
-	defer rpcServerOnRequestRegistryLock.Unlock()
-	rpcServerOnRequestRegistry[uintptr(id)](req)
-}
-
-func registerRpcServerOnRequest(fn func(C.a0_rpc_request_t)) (id uintptr) {
-	rpcServerOnRequestRegistryLock.Lock()
-	defer rpcServerOnRequestRegistryLock.Unlock()
-	id = nextRpcServerOnRequestId
-	nextRpcServerOnRequestId++
-	rpcServerOnRequestRegistry[id] = fn
-	return
-}
-
-func unregisterRpcServerOnRequest(id uintptr) {
-	rpcServerOnRequestRegistryLock.Lock()
-	defer rpcServerOnRequestRegistryLock.Unlock()
-	delete(rpcServerOnRequestRegistry, id)
-}
-
 type RpcServer struct {
-	c                    C.a0_rpc_server_t
-	allocId              uintptr
-	rpcServerOnRequestId uintptr
-	activePkt            Packet
+	c           C.a0_rpc_server_t
+	allocId     uintptr
+	activePkt   Packet
+	onrequestId uintptr
+	oncancelId  uintptr
 }
 
-func NewRpcServer(requestShm, responseShm ShmObj, onrequest func(RpcRequest)) (rs RpcServer, err error) {
+func NewRpcServer(shm ShmObj, onrequest func(Packet), oncancel func(Packet)) (rs RpcServer, err error) {
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		rs.activePkt.goMem = make([]byte, int(size))
 		out.size = size
 		out.ptr = (*C.uint8_t)(&rs.activePkt.goMem[0])
 	})
 
-	rs.rpcServerOnRequestId = registerRpcServerOnRequest(func(req C.a0_rpc_request_t) {
-		onrequest(RpcRequest{req})
+	rs.onrequestId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+		onrequest(Packet{cPkt, nil})
 		rs.activePkt.goMem = nil
 	})
 
-	err = errorFrom(C.a0go_rpc_server_init(&rs.c, requestShm.c, responseShm.c, C.uintptr_t(rs.allocId), C.uintptr_t(rs.rpcServerOnRequestId)))
+	rs.oncancelId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+		onrequest(Packet{cPkt, nil})
+		rs.activePkt.goMem = nil
+	})
+
+	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
 	return
 }
 
@@ -77,14 +40,15 @@ func (rs *RpcServer) Close() error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
-		unregisterRpcServerOnRequest(rs.rpcServerOnRequestId)
+		unregisterPacketCallback(rs.onrequestId)
+		unregisterPacketCallback(rs.oncancelId)
 		unregisterAlloc(rs.allocId)
 	})
 	return errorFrom(C.a0go_rpc_server_close(&rs.c, C.uintptr_t(callbackId)))
 }
 
-func (rs *RpcServer) Reply(req RpcRequest, pkt Packet) error {
-	return errorFrom(C.a0_rpc_reply(&rs.c, req.c, pkt.c))
+func (rs *RpcServer) Reply(req Packet, resp Packet) error {
+	return errorFrom(C.a0_rpc_reply(&rs.c, req.c, resp.c))
 }
 
 type RpcClient struct {
@@ -93,14 +57,14 @@ type RpcClient struct {
 	activePkt Packet
 }
 
-func NewRpcClient(requestShm, responseShm ShmObj) (rc RpcClient, err error) {
+func NewRpcClient(shm ShmObj) (rc RpcClient, err error) {
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		rc.activePkt.goMem = make([]byte, int(size))
 		out.size = size
 		out.ptr = (*C.uint8_t)(&rc.activePkt.goMem[0])
 	})
 
-	err = errorFrom(C.a0go_rpc_client_init(&rc.c, requestShm.c, responseShm.c, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c, C.uintptr_t(rc.allocId)))
 	return
 }
 
@@ -120,4 +84,8 @@ func (rc *RpcClient) Send(pkt Packet, replyCb func(Packet)) error {
 		unregisterPacketCallback(packetCallbackId)
 	})
 	return errorFrom(C.a0go_rpc_send(&rc.c, pkt.c, C.uintptr_t(packetCallbackId)))
+}
+
+func (rc *RpcClient) Cancel(pkt Packet) error {
+	return errorFrom(C.a0_rpc_cancel(&rc.c, pkt.c))
 }
