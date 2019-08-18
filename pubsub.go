@@ -12,7 +12,7 @@ type Publisher struct {
 }
 
 func NewPublisher(shm ShmObj) (p Publisher, err error) {
-	err = errorFrom(C.a0_publisher_init(&p.c, shm.c))
+	err = errorFrom(C.a0_publisher_init_unmanaged(&p.c, shm.c))
 	return
 }
 
@@ -40,19 +40,20 @@ const (
 )
 
 type SubscriberSync struct {
-	c       C.a0_subscriber_sync_t
-	allocId uintptr
+	c         C.a0_subscriber_sync_t
+	allocId   uintptr
+	activePkt Packet
 }
 
 func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
-	ss.allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		pkt.goMem = make([]byte, int(size))
+	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+		ss.activePkt.goMem = make([]byte, int(size))
 		out.size = size
-		out.ptr = (*C.uint8_t)(&pkt.goMem[0])
-		pkt.c = *out
+		out.ptr = (*C.uint8_t)(&ss.activePkt.goMem[0])
+		ss.activePkt.c = *out
 	})
 
-	err = errorFrom(C.a0_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
+	err = errorFrom(C.a0go_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
 	return
 }
 
@@ -68,7 +69,7 @@ func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
 }
 
 func (ss *SubscriberSync) Next() (pkt Packet, err error) {
-	err = errorFrom(C.a0go_subscriber_sync_next(&ss.c, &pkt.c))
+	err = errorFrom(C.a0_subscriber_sync_next(&ss.c, &pkt.c))
 	return
 }
 
@@ -92,7 +93,7 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 		s.activePkt.goMem = nil
 	})
 
-	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
