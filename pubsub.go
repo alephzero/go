@@ -40,16 +40,26 @@ const (
 )
 
 type SubscriberSync struct {
-	c C.a0_subscriber_sync_t
+	c       C.a0_subscriber_sync_t
+	allocId uintptr
 }
 
 func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
-	err = errorFrom(C.a0_subscriber_sync_init(&ss.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
+	ss.allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+		pkt.goMem = make([]byte, int(size))
+		out.size = size
+		out.ptr = (*C.uint8_t)(&pkt.goMem[0])
+		pkt.c = *out
+	})
+
+	err = errorFrom(C.a0_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
 	return
 }
 
-func (ss *SubscriberSync) Close() error {
-	return errorFrom(C.a0_subscriber_sync_close(&ss.c))
+func (ss *SubscriberSync) Close() (err error) {
+	err = errorFrom(C.a0_subscriber_sync_close(&ss.c))
+	unregisterAlloc(ss.allocId)
+	return
 }
 
 func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
@@ -58,15 +68,7 @@ func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
 }
 
 func (ss *SubscriberSync) Next() (pkt Packet, err error) {
-	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		pkt.goMem = make([]byte, int(size))
-		out.size = size
-		out.ptr = (*C.uint8_t)(&pkt.goMem[0])
-		pkt.c = *out
-	})
-	defer unregisterAlloc(allocId)
-
-	err = errorFrom(C.a0go_subscriber_sync_next(&ss.c, C.uintptr_t(allocId), &pkt.c))
+	err = errorFrom(C.a0go_subscriber_sync_next(&ss.c, &pkt.c))
 	return
 }
 
@@ -90,7 +92,7 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 		s.activePkt.goMem = nil
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.allocId), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 

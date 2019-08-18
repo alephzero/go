@@ -32,7 +32,7 @@ func NewRpcServer(shm ShmObj, onrequest func(Packet), oncancel func(Packet)) (rs
 		rs.activePkt.goMem = nil
 	})
 
-	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
+	err = errorFrom(C.a0go_rpc_server_init_unmanaged(&rs.c, shm.c, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
 	return
 }
 
@@ -64,7 +64,7 @@ func NewRpcClient(shm ShmObj) (rc RpcClient, err error) {
 		out.ptr = (*C.uint8_t)(&rc.activePkt.goMem[0])
 	})
 
-	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_rpc_client_init_unmanaged(&rc.c, shm.c, C.uintptr_t(rc.allocId)))
 	return
 }
 
