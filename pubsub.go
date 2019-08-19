@@ -59,7 +59,9 @@ func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext Subsc
 
 func (ss *SubscriberSync) Close() (err error) {
 	err = errorFrom(C.a0_subscriber_sync_close(&ss.c))
-	unregisterAlloc(ss.allocId)
+	if ss.allocId > 0 {
+		unregisterAlloc(ss.allocId)
+	}
 	return
 }
 
@@ -102,7 +104,9 @@ func (s *Subscriber) Close() error {
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
 		unregisterPacketCallback(s.packetCallbackId)
-		unregisterAlloc(s.allocId)
+		if s.allocId > 0 {
+			unregisterAlloc(s.allocId)
+		}
 	})
 	return errorFrom(C.a0go_subscriber_close(&s.c, C.uintptr_t(callbackId)))
 }

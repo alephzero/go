@@ -42,7 +42,9 @@ func (rs *RpcServer) Close() error {
 		unregisterCallback(callbackId)
 		unregisterPacketCallback(rs.onrequestId)
 		unregisterPacketCallback(rs.oncancelId)
-		unregisterAlloc(rs.allocId)
+		if rs.allocId > 0 {
+			unregisterAlloc(rs.allocId)
+		}
 	})
 	return errorFrom(C.a0go_rpc_server_close(&rs.c, C.uintptr_t(callbackId)))
 }
