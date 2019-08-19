@@ -13,7 +13,7 @@ import (
 )
 
 type PacketHeader struct {
-	Key, Val []byte
+	Key, Val string
 }
 
 type Packet struct {
@@ -31,8 +31,13 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		for i, hdr := range hdrs {
 			cHdr := &(*[1 << 30]C.a0_packet_header_t)(cHdrs)[i]
 
-			cHdr.key = cBufFrom(hdr.Key)
-			cHdr.val = cBufFrom(hdr.Val)
+			cKey := C.CString(hdr.Key)
+			defer C.free(unsafe.Pointer(cKey))
+			cHdr.key = cKey
+
+			cVal := C.CString(hdr.Val)
+			defer C.free(unsafe.Pointer(cVal))
+			cHdr.val = cVal
 		}
 	}
 
@@ -60,12 +65,12 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 	return
 }
 
-func PacketIdKey() []byte {
-	return goBufFrom(C.a0_packet_id_key())
+func PacketIdKey() string {
+	return C.GoString(C.a0_packet_id_key())
 }
 
-func PacketDepKey() []byte {
-	return goBufFrom(C.a0_packet_dep_key())
+func PacketDepKey() string {
+	return C.GoString(C.a0_packet_dep_key())
 }
 
 func (p *Packet) Bytes() ([]byte, error) {
@@ -87,17 +92,19 @@ func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 	if err = errorFrom(C.a0_packet_header(p.c, C.size_t(idx), &cHdr)); err != nil {
 		return
 	}
-	hdr.Key = goBufFrom(cHdr.key)
-	hdr.Val = goBufFrom(cHdr.val)
+	hdr.Key = C.GoString(cHdr.key)
+	hdr.Val = C.GoString(cHdr.val)
 	return
 }
 
-func (p *Packet) FindHeader(key []byte) (val []byte, err error) {
-	var cVal C.a0_buf_t
-	if err = errorFrom(C.a0_packet_find_header(p.c, cBufFrom(key), &cVal)); err != nil {
+func (p *Packet) FindHeader(key string) (val string, err error) {
+	cKey := C.CString(key)
+	defer C.free(unsafe.Pointer(cKey))
+	var cVal *C.char
+	if err = errorFrom(C.a0_packet_find_header(p.c, cKey, &cVal)); err != nil {
 		return
 	}
-	val = goBufFrom(cVal)
+	val = C.GoString(cVal)
 	return
 }
 
@@ -126,12 +133,12 @@ func (p *Packet) Payload() (payload []byte, err error) {
 	return
 }
 
-func (p *Packet) Id() (val []byte, err error) {
-	var cVal C.a0_buf_t
+func (p *Packet) Id() (val string, err error) {
+	var cVal *C.char
 	if err = errorFrom(C.a0_packet_id(p.c, &cVal)); err != nil {
 		return
 	}
-	val = goBufFrom(cVal)
+	val = C.GoString(cVal)
 	return
 }
 
