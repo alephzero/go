@@ -5,6 +5,16 @@
 
 #include "packet_adapter.h"
 
+static inline errno_t a0go_config_reader_init(a0_subscriber_t* sub,
+                                              a0_alephzero_t alephzero,
+                                              uintptr_t packet_callback_id) {
+  a0_packet_callback_t packet_callback = {
+      .user_data = (void*)packet_callback_id,
+      .fn = a0go_packet_callback,
+  };
+  return a0_config_reader_init(sub, alephzero, packet_callback);
+}
+
 static inline errno_t a0go_subscriber_init(a0_subscriber_t* sub,
                                            a0_alephzero_t alephzero,
                                            const char* name,

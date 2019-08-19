@@ -24,6 +24,20 @@ func (a0 *AlephZero) Close() error {
 	return errorFrom(C.a0_alephzero_close(&a0.c))
 }
 
+func (a0 *AlephZero) NewConfigReaderSync() (ss SubscriberSync, err error) {
+	err = errorFrom(C.a0_config_reader_sync_init(&ss.c, a0.c))
+	return
+}
+
+func (a0 *AlephZero) NewConfigReader(callback func(Packet)) (s Subscriber, err error) {
+	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+		callback(Packet{cPkt, nil})
+	})
+
+	err = errorFrom(C.a0go_config_reader_init(&s.c, a0.c, C.uintptr_t(s.packetCallbackId)))
+	return
+}
+
 func (a0 *AlephZero) NewPublisher(name string) (p Publisher, err error) {
 	nameCStr := C.CString(name)
 	defer C.free(unsafe.Pointer(nameCStr))

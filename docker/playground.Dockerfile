@@ -1,8 +1,5 @@
 FROM golang
 
-ENV GOOS=linux
-ENV GOARCH=amd64
-
 RUN go get github.com/huytd/playgo
 
 RUN cd / &&                                                 \

@@ -88,7 +88,7 @@ func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 		return
 	}
 	hdr.Key = goBufFrom(cHdr.key)
-	hdr.Key = goBufFrom(cHdr.val)
+	hdr.Val = goBufFrom(cHdr.val)
 	return
 }
 
@@ -98,6 +98,22 @@ func (p *Packet) FindHeader(key []byte) (val []byte, err error) {
 		return
 	}
 	val = goBufFrom(cVal)
+	return
+}
+
+func (p *Packet) Headers() (hdrs []PacketHeader, err error) {
+	n, err := p.NumHeaders()
+	if err != nil {
+		return
+	}
+	for i := 0; i < n; i++ {
+		var hdr PacketHeader
+		hdr, err = p.Header(i)
+		if err != nil {
+			return
+		}
+		hdrs = append(hdrs, hdr)
+	}
 	return
 }
 
