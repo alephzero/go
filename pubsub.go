@@ -99,13 +99,16 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 	return
 }
 
-func (s *Subscriber) Close() error {
+func (s *Subscriber) Close(fn func()) error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
 		unregisterPacketCallback(s.packetCallbackId)
 		if s.allocId > 0 {
 			unregisterAlloc(s.allocId)
+		}
+		if fn != nil {
+			fn()
 		}
 	})
 	return errorFrom(C.a0go_subscriber_close(&s.c, C.uintptr_t(callbackId)))

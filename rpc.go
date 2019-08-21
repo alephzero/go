@@ -36,7 +36,7 @@ func NewRpcServer(shm ShmObj, onrequest func(Packet), oncancel func(Packet)) (rs
 	return
 }
 
-func (rs *RpcServer) Close() error {
+func (rs *RpcServer) Close(fn func()) error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
@@ -44,6 +44,9 @@ func (rs *RpcServer) Close() error {
 		unregisterPacketCallback(rs.oncancelId)
 		if rs.allocId > 0 {
 			unregisterAlloc(rs.allocId)
+		}
+		if fn != nil {
+			fn()
 		}
 	})
 	return errorFrom(C.a0go_rpc_server_close(&rs.c, C.uintptr_t(callbackId)))
@@ -70,11 +73,14 @@ func NewRpcClient(shm ShmObj) (rc RpcClient, err error) {
 	return
 }
 
-func (rc *RpcClient) Close() error {
+func (rc *RpcClient) Close(fn func()) error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
 		unregisterAlloc(rc.allocId)
+		if fn != nil {
+			fn()
+		}
 	})
 	return errorFrom(C.a0go_rpc_client_close(&rc.c, C.uintptr_t(callbackId)))
 }
