@@ -21,7 +21,7 @@ func (p *Publisher) Close() error {
 }
 
 func (p *Publisher) Pub(pkt Packet) error {
-	return errorFrom(C.a0_pub(&p.c, pkt.c))
+	return errorFrom(C.a0_pub(&p.c, pkt.C()))
 }
 
 type SubscriberReadStart int
@@ -40,17 +40,16 @@ const (
 )
 
 type SubscriberSync struct {
-	c         C.a0_subscriber_sync_t
-	allocId   uintptr
+	c       C.a0_subscriber_sync_t
+	allocId uintptr
+	// Memory must survive between the alloc and Next.
 	activePkt Packet
 }
 
 func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		ss.activePkt.goMem = make([]byte, int(size))
-		out.size = size
-		out.ptr = (*C.uint8_t)(&ss.activePkt.goMem[0])
-		ss.activePkt.c = *out
+		ss.activePkt = Packet{make([]byte, int(size))}
+		*out = ss.activePkt.C()
 	})
 
 	err = errorFrom(C.a0go_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
@@ -71,28 +70,31 @@ func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
 }
 
 func (ss *SubscriberSync) Next() (pkt Packet, err error) {
-	err = errorFrom(C.a0_subscriber_sync_next(&ss.c, &pkt.c))
+	var cPkt C.a0_packet_t
+	err = errorFrom(C.a0_subscriber_sync_next(&ss.c, &cPkt))
+	// TODO: Maybe use activePkt, if using unmanaged api.
+	if err == nil {
+		pkt = packetFromC(cPkt)
+	}
 	return
 }
 
 type Subscriber struct {
 	c                C.a0_subscriber_t
 	allocId          uintptr
-	activePkt        Packet
 	packetCallbackId uintptr
 }
 
 func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {
+	var activePkt Packet
+
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		s.activePkt.goMem = make([]byte, int(size))
-		out.size = size
-		out.ptr = (*C.uint8_t)(&s.activePkt.goMem[0])
-		s.activePkt.c = *out
+		activePkt = Packet{make([]byte, int(size))}
+		*out = activePkt.C()
 	})
 
 	s.packetCallbackId = registerPacketCallback(func(_ C.a0_packet_t) {
-		callback(s.activePkt)
-		s.activePkt.goMem = nil
+		callback(activePkt)
 	})
 
 	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.packetCallbackId)))

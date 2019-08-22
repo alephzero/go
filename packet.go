@@ -17,8 +17,11 @@ type PacketHeader struct {
 }
 
 type Packet struct {
-	c     C.a0_packet_t
 	goMem []byte
+}
+
+func packetFromC(cPkt C.a0_packet_t) Packet {
+	return Packet{C.GoBytes(unsafe.Pointer(cPkt.ptr), C.int(cPkt.size))}
 }
 
 func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
@@ -60,8 +63,16 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		(*C.a0_packet_header_t)(cHdrs),
 		cPayload,
 		C.uintptr_t(allocId),
-		&pkt.c))
+		nil))
 
+	return
+}
+
+func (p *Packet) C() (cPkt C.a0_packet_t) {
+	cPkt.size = C.size_t(len(p.goMem))
+	if cPkt.size > 0 {
+		cPkt.ptr = (*C.uint8_t)(&p.goMem[0])
+	}
 	return
 }
 
@@ -79,7 +90,7 @@ func (p *Packet) Bytes() ([]byte, error) {
 
 func (p *Packet) NumHeaders() (cnt int, err error) {
 	var ucnt C.size_t
-	err = errorFrom(C.a0_packet_num_headers(p.c, &ucnt))
+	err = errorFrom(C.a0_packet_num_headers(p.C(), &ucnt))
 	if err != nil {
 		return
 	}
@@ -89,7 +100,7 @@ func (p *Packet) NumHeaders() (cnt int, err error) {
 
 func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 	var cHdr C.a0_packet_header_t
-	if err = errorFrom(C.a0_packet_header(p.c, C.size_t(idx), &cHdr)); err != nil {
+	if err = errorFrom(C.a0_packet_header(p.C(), C.size_t(idx), &cHdr)); err != nil {
 		return
 	}
 	hdr.Key = C.GoString(cHdr.key)
@@ -101,7 +112,7 @@ func (p *Packet) FindHeader(key string) (val string, err error) {
 	cKey := C.CString(key)
 	defer C.free(unsafe.Pointer(cKey))
 	var cVal *C.char
-	if err = errorFrom(C.a0_packet_find_header(p.c, cKey, &cVal)); err != nil {
+	if err = errorFrom(C.a0_packet_find_header(p.C(), cKey, &cVal)); err != nil {
 		return
 	}
 	val = C.GoString(cVal)
@@ -126,7 +137,7 @@ func (p *Packet) Headers() (hdrs []PacketHeader, err error) {
 
 func (p *Packet) Payload() (payload []byte, err error) {
 	var cBuf C.a0_buf_t
-	if err = errorFrom(C.a0_packet_payload(p.c, &cBuf)); err != nil {
+	if err = errorFrom(C.a0_packet_payload(p.C(), &cBuf)); err != nil {
 		return
 	}
 	payload = goBufFrom(cBuf)
@@ -134,11 +145,16 @@ func (p *Packet) Payload() (payload []byte, err error) {
 }
 
 func (p *Packet) Id() (val string, err error) {
-	var cVal *C.char
-	if err = errorFrom(C.a0_packet_id(p.c, &cVal)); err != nil {
+	var cVal C.a0_packet_id_t
+	if err = errorFrom(C.a0_packet_id(p.C(), &cVal)); err != nil {
 		return
 	}
-	val = C.GoString(cVal)
+	// TODO: There must be a better way!
+	var goBytes []byte
+	for i := 0; i < C.A0_PACKET_ID_SIZE; i++ {
+		goBytes = append(goBytes, byte(cVal[i]))
+	}
+	val = string(goBytes)
 	return
 }
 
@@ -169,4 +185,33 @@ func unregisterPacketCallback(id uintptr) {
 	packetCallbackMutex.Lock()
 	defer packetCallbackMutex.Unlock()
 	delete(packetCallbackRegistry, id)
+}
+
+var (
+	packetIdCallbackMutex    = sync.Mutex{}
+	packetIdCallbackRegistry = make(map[uintptr]func(*C.char))
+	nextPacketIdCallbackId   uintptr
+)
+
+//export a0go_packet_id_callback
+func a0go_packet_id_callback(id unsafe.Pointer, c *C.char) {
+	packetIdCallbackMutex.Lock()
+	fn := packetIdCallbackRegistry[uintptr(id)]
+	packetIdCallbackMutex.Unlock()
+	fn(c)
+}
+
+func registerPacketIdCallback(fn func(*C.char)) (id uintptr) {
+	packetIdCallbackMutex.Lock()
+	defer packetIdCallbackMutex.Unlock()
+	id = nextPacketIdCallbackId
+	nextPacketIdCallbackId++
+	packetIdCallbackRegistry[id] = fn
+	return
+}
+
+func unregisterPacketIdCallback(id uintptr) {
+	packetIdCallbackMutex.Lock()
+	defer packetIdCallbackMutex.Unlock()
+	delete(packetIdCallbackRegistry, id)
 }

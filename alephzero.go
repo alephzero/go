@@ -31,7 +31,7 @@ func (a0 *AlephZero) NewConfigReaderSync() (ss SubscriberSync, err error) {
 
 func (a0 *AlephZero) NewConfigReader(callback func(Packet)) (s Subscriber, err error) {
 	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
-		callback(Packet{cPkt, nil})
+		callback(packetFromC(cPkt))
 	})
 
 	err = errorFrom(C.a0go_config_reader_init(&s.c, a0.c, C.uintptr_t(s.packetCallbackId)))
@@ -57,25 +57,23 @@ func (a0 *AlephZero) NewSubscriber(name string, readStart SubscriberReadStart, r
 	defer C.free(unsafe.Pointer(nameCStr))
 
 	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
-		callback(Packet{cPkt, nil})
+		callback(packetFromC(cPkt))
 	})
 
 	err = errorFrom(C.a0go_subscriber_init(&s.c, a0.c, nameCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
-func (a0 *AlephZero) NewRpcServer(name string, onrequest func(Packet), oncancel func(Packet)) (rs RpcServer, err error) {
+func (a0 *AlephZero) NewRpcServer(name string, onrequest func(Packet), oncancel func(string)) (rs RpcServer, err error) {
 	nameCStr := C.CString(name)
 	defer C.free(unsafe.Pointer(nameCStr))
 
 	rs.onrequestId = registerPacketCallback(func(cPkt C.a0_packet_t) {
-		onrequest(Packet{cPkt, nil})
-		rs.activePkt.goMem = nil
+		onrequest(packetFromC(cPkt))
 	})
 
-	rs.oncancelId = registerPacketCallback(func(cPkt C.a0_packet_t) {
-		onrequest(Packet{cPkt, nil})
-		rs.activePkt.goMem = nil
+	rs.oncancelId = registerPacketIdCallback(func(cPktId *C.char) {
+		oncancel(C.GoStringN(cPktId, C.A0_PACKET_ID_SIZE))
 	})
 
 	err = errorFrom(C.a0go_rpc_server_init(&rs.c, a0.c, nameCStr, C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))

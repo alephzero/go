@@ -37,9 +37,9 @@ static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
       .user_data = (void*)onrequest_id,
       .fn = a0go_packet_callback,
   };
-  a0_packet_callback_t oncancel = {
+  a0_packet_id_callback_t oncancel = {
       .user_data = (void*)oncancel_id,
-      .fn = a0go_packet_callback,
+      .fn = a0go_packet_id_callback,
   };
   return a0_rpc_server_init(server, alephzero, name, onrequest, oncancel);
 }
