@@ -16,12 +16,10 @@ type PacketHeader struct {
 	Key, Val string
 }
 
-type Packet struct {
-	goMem []byte
-}
+type Packet []byte
 
 func packetFromC(cPkt C.a0_packet_t) Packet {
-	return Packet{C.GoBytes(unsafe.Pointer(cPkt.ptr), C.int(cPkt.size))}
+	return C.GoBytes(unsafe.Pointer(cPkt.ptr), C.int(cPkt.size))
 }
 
 func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
@@ -51,8 +49,8 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		out.size = size
 		if size > 0 {
-			pkt.goMem = make([]byte, int(size))
-			out.ptr = (*C.uint8_t)(&pkt.goMem[0])
+			pkt = make([]byte, int(size))
+			out.ptr = (*C.uint8_t)(&pkt[0])
 		}
 	})
 	defer unregisterAlloc(allocId)
@@ -68,10 +66,10 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 	return
 }
 
-func (p *Packet) C() (cPkt C.a0_packet_t) {
-	cPkt.size = C.size_t(len(p.goMem))
+func (p Packet) C() (cPkt C.a0_packet_t) {
+	cPkt.size = C.size_t(len(p))
 	if cPkt.size > 0 {
-		cPkt.ptr = (*C.uint8_t)(&p.goMem[0])
+		cPkt.ptr = (*C.uint8_t)(&p[0])
 	}
 	return
 }
@@ -84,11 +82,7 @@ func PacketDepKey() string {
 	return C.GoString(C.a0_packet_dep_key())
 }
 
-func (p *Packet) Bytes() ([]byte, error) {
-	return p.goMem, nil
-}
-
-func (p *Packet) NumHeaders() (cnt int, err error) {
+func (p Packet) NumHeaders() (cnt int, err error) {
 	var ucnt C.size_t
 	err = errorFrom(C.a0_packet_num_headers(p.C(), &ucnt))
 	if err != nil {
@@ -98,7 +92,7 @@ func (p *Packet) NumHeaders() (cnt int, err error) {
 	return
 }
 
-func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
+func (p Packet) Header(idx int) (hdr PacketHeader, err error) {
 	var cHdr C.a0_packet_header_t
 	if err = errorFrom(C.a0_packet_header(p.C(), C.size_t(idx), &cHdr)); err != nil {
 		return
@@ -108,7 +102,7 @@ func (p *Packet) Header(idx int) (hdr PacketHeader, err error) {
 	return
 }
 
-func (p *Packet) FindHeader(key string) (val string, err error) {
+func (p Packet) FindHeader(key string) (val string, err error) {
 	cKey := C.CString(key)
 	defer C.free(unsafe.Pointer(cKey))
 	var cVal *C.char
@@ -119,7 +113,7 @@ func (p *Packet) FindHeader(key string) (val string, err error) {
 	return
 }
 
-func (p *Packet) Headers() (hdrs []PacketHeader, err error) {
+func (p Packet) Headers() (hdrs []PacketHeader, err error) {
 	n, err := p.NumHeaders()
 	if err != nil {
 		return
@@ -135,7 +129,7 @@ func (p *Packet) Headers() (hdrs []PacketHeader, err error) {
 	return
 }
 
-func (p *Packet) Payload() (payload []byte, err error) {
+func (p Packet) Payload() (payload []byte, err error) {
 	var cBuf C.a0_buf_t
 	if err = errorFrom(C.a0_packet_payload(p.C(), &cBuf)); err != nil {
 		return
@@ -144,7 +138,7 @@ func (p *Packet) Payload() (payload []byte, err error) {
 	return
 }
 
-func (p *Packet) Id() (val string, err error) {
+func (p Packet) Id() (val string, err error) {
 	var cVal C.a0_packet_id_t
 	if err = errorFrom(C.a0_packet_id(p.C(), &cVal)); err != nil {
 		return

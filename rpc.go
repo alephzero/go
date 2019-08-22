@@ -22,7 +22,7 @@ func NewRpcServer(shm ShmObj, onrequest func(Packet), oncancel func(string)) (rs
 	var activePkt Packet
 
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = Packet{make([]byte, int(size))}
+		activePkt = make([]byte, int(size))
 		*out = activePkt.C()
 	})
 
@@ -69,7 +69,7 @@ type RpcClient struct {
 
 func NewRpcClient(shm ShmObj) (rc RpcClient, err error) {
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		rc.activePkt = Packet{make([]byte, int(size))}
+		rc.activePkt = make([]byte, int(size))
 		*out = rc.activePkt.C()
 	})
 

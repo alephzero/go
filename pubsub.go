@@ -48,7 +48,7 @@ type SubscriberSync struct {
 
 func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		ss.activePkt = Packet{make([]byte, int(size))}
+		ss.activePkt = make([]byte, int(size))
 		*out = ss.activePkt.C()
 	})
 
@@ -89,7 +89,7 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 	var activePkt Packet
 
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = Packet{make([]byte, int(size))}
+		activePkt = make([]byte, int(size))
 		*out = activePkt.C()
 	})
 
