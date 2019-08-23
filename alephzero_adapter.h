@@ -18,14 +18,14 @@ static inline errno_t a0go_config_reader_init(a0_subscriber_t* sub,
 static inline errno_t a0go_subscriber_init(a0_subscriber_t* sub,
                                            a0_alephzero_t alephzero,
                                            const char* name,
-                                           a0_subscriber_read_start_t read_start,
-                                           a0_subscriber_read_next_t read_next,
+                                           a0_subscriber_init_t sub_init,
+                                           a0_subscriber_iter_t sub_iter,
                                            uintptr_t packet_callback_id) {
   a0_packet_callback_t packet_callback = {
       .user_data = (void*)packet_callback_id,
       .fn = a0go_packet_callback,
   };
-  return a0_subscriber_init(sub, alephzero, name, read_start, read_next, packet_callback);
+  return a0_subscriber_init(sub, alephzero, name, sub_init, sub_iter, packet_callback);
 }
 
 static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,

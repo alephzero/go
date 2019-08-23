@@ -24,19 +24,19 @@ func (p *Publisher) Pub(pkt Packet) error {
 	return errorFrom(C.a0_pub(&p.c, pkt.C()))
 }
 
-type SubscriberReadStart int
+type SubscriberInit int
 
 const (
-	READ_START_EARLIEST SubscriberReadStart = C.A0_READ_START_EARLIEST
-	READ_START_LATEST                       = C.A0_READ_START_LATEST
-	READ_START_NEW                          = C.A0_READ_START_NEW
+	INIT_OLDEST      SubscriberInit = C.A0_INIT_OLDEST
+	INIT_MOST_RECENT                = C.A0_INIT_MOST_RECENT
+	INIT_AWAIT_NEW                  = C.A0_INIT_AWAIT_NEW
 )
 
-type SubscriberReadNext int
+type SubscriberIter int
 
 const (
-	READ_NEXT_SEQUENTIAL SubscriberReadNext = C.A0_READ_NEXT_SEQUENTIAL
-	READ_NEXT_RECENT                        = C.A0_READ_NEXT_RECENT
+	ITER_NEXT   SubscriberIter = C.A0_ITER_NEXT
+	ITER_NEWEST                = C.A0_ITER_NEWEST
 )
 
 type SubscriberSync struct {
@@ -46,13 +46,13 @@ type SubscriberSync struct {
 	activePkt Packet
 }
 
-func NewSubscriberSync(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
+func NewSubscriberSync(shm ShmObj, subInit SubscriberInit, subIter SubscriberIter) (ss SubscriberSync, err error) {
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		ss.activePkt = make([]byte, int(size))
 		*out = ss.activePkt.C()
 	})
 
-	err = errorFrom(C.a0go_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
+	err = errorFrom(C.a0go_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
 	return
 }
 
@@ -85,7 +85,7 @@ type Subscriber struct {
 	packetCallbackId uintptr
 }
 
-func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {
+func NewSubscriber(shm ShmObj, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s Subscriber, err error) {
 	var activePkt Packet
 
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
@@ -97,7 +97,7 @@ func NewSubscriber(shm ShmObj, readStart SubscriberReadStart, readNext Subscribe
 		callback(activePkt)
 	})
 
-	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 

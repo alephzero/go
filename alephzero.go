@@ -45,14 +45,14 @@ func (a0 *AlephZero) NewPublisher(name string) (p Publisher, err error) {
 	return
 }
 
-func (a0 *AlephZero) NewSubscriberSync(name string, readStart SubscriberReadStart, readNext SubscriberReadNext) (ss SubscriberSync, err error) {
+func (a0 *AlephZero) NewSubscriberSync(name string, subInit SubscriberInit, subIter SubscriberIter) (ss SubscriberSync, err error) {
 	nameCStr := C.CString(name)
 	defer C.free(unsafe.Pointer(nameCStr))
-	err = errorFrom(C.a0_subscriber_sync_init(&ss.c, a0.c, nameCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext)))
+	err = errorFrom(C.a0_subscriber_sync_init(&ss.c, a0.c, nameCStr, C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
 	return
 }
 
-func (a0 *AlephZero) NewSubscriber(name string, readStart SubscriberReadStart, readNext SubscriberReadNext, callback func(Packet)) (s Subscriber, err error) {
+func (a0 *AlephZero) NewSubscriber(name string, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s Subscriber, err error) {
 	nameCStr := C.CString(name)
 	defer C.free(unsafe.Pointer(nameCStr))
 
@@ -60,7 +60,7 @@ func (a0 *AlephZero) NewSubscriber(name string, readStart SubscriberReadStart, r
 		callback(packetFromC(cPkt))
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, a0.c, nameCStr, C.a0_subscriber_read_start_t(readStart), C.a0_subscriber_read_next_t(readNext), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, a0.c, nameCStr, C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
