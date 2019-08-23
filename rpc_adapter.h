@@ -6,11 +6,11 @@
 #include "common_adapter.h"
 #include "packet_adapter.h"
 
-static inline errno_t a0go_rpc_server_init_unmanaged(a0_rpc_server_t* server,
-                                                     a0_shmobj_t shmobj,
-                                                     uintptr_t alloc_id,
-                                                     uintptr_t onrequest_id,
-                                                     uintptr_t oncancel_id) {
+static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
+                                           a0_shmobj_t shmobj,
+                                           uintptr_t alloc_id,
+                                           uintptr_t onrequest_id,
+                                           uintptr_t oncancel_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,
@@ -23,7 +23,7 @@ static inline errno_t a0go_rpc_server_init_unmanaged(a0_rpc_server_t* server,
       .user_data = (void*)oncancel_id,
       .fn = a0go_packet_id_callback,
   };
-  return a0_rpc_server_init_unmanaged(server, shmobj, alloc, onrequest, oncancel);
+  return a0_rpc_server_init(server, shmobj, alloc, onrequest, oncancel);
 }
 
 static inline errno_t a0go_rpc_server_close(a0_rpc_server_t* server, uintptr_t callback_id) {
@@ -34,14 +34,14 @@ static inline errno_t a0go_rpc_server_close(a0_rpc_server_t* server, uintptr_t c
   return a0_rpc_server_close(server, callback);
 }
 
-static inline errno_t a0go_rpc_client_init_unmanaged(a0_rpc_client_t* client,
-                                                     a0_shmobj_t shmobj,
-                                                     uintptr_t alloc_id) {
+static inline errno_t a0go_rpc_client_init(a0_rpc_client_t* client,
+                                           a0_shmobj_t shmobj,
+                                           uintptr_t alloc_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,
   };
-  return a0_rpc_client_init_unmanaged(client, shmobj, alloc);
+  return a0_rpc_client_init(client, shmobj, alloc);
 }
 
 static inline errno_t a0go_rpc_client_close(a0_rpc_client_t* client, uintptr_t callback_id) {

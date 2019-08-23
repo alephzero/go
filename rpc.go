@@ -34,7 +34,7 @@ func NewRpcServer(shm ShmObj, onrequest func(Packet), oncancel func(string)) (rs
 		oncancel(C.GoString(cReqId))
 	})
 
-	err = errorFrom(C.a0go_rpc_server_init_unmanaged(&rs.c, shm.c, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
+	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
 	return
 }
 
@@ -77,7 +77,7 @@ func NewRpcClient(shm ShmObj) (rc RpcClient, err error) {
 		*out = rc.activePkt.C()
 	})
 
-	err = errorFrom(C.a0go_rpc_client_init_unmanaged(&rc.c, shm.c, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c, C.uintptr_t(rc.allocId)))
 	return
 }
 
@@ -100,7 +100,6 @@ func (rc *RpcClient) AwaitClose() error {
 func (rc *RpcClient) Send(pkt Packet, replyCb func(Packet)) error {
 	var packetCallbackId uintptr
 	packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
-		// TODO: Maybe use activePkt, if using unmanaged api.
 		replyCb(packetFromC(cPkt))
 		unregisterPacketCallback(packetCallbackId)
 	})

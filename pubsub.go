@@ -12,7 +12,7 @@ type Publisher struct {
 }
 
 func NewPublisher(shm ShmObj) (p Publisher, err error) {
-	err = errorFrom(C.a0_publisher_init_unmanaged(&p.c, shm.c))
+	err = errorFrom(C.a0_publisher_init(&p.c, shm.c))
 	return
 }
 
@@ -52,7 +52,7 @@ func NewSubscriberSync(shm ShmObj, subInit SubscriberInit, subIter SubscriberIte
 		*out = ss.activePkt.C()
 	})
 
-	err = errorFrom(C.a0go_subscriber_sync_init_unmanaged(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
+	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
 	return
 }
 
@@ -72,7 +72,6 @@ func (ss *SubscriberSync) HasNext() (hasNext bool, err error) {
 func (ss *SubscriberSync) Next() (pkt Packet, err error) {
 	var cPkt C.a0_packet_t
 	err = errorFrom(C.a0_subscriber_sync_next(&ss.c, &cPkt))
-	// TODO: Maybe use activePkt, if using unmanaged api.
 	if err == nil {
 		pkt = packetFromC(cPkt)
 	}
@@ -97,7 +96,7 @@ func NewSubscriber(shm ShmObj, subInit SubscriberInit, subIter SubscriberIter, c
 		callback(activePkt)
 	})
 
-	err = errorFrom(C.a0go_subscriber_init_unmanaged(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
