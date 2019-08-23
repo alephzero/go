@@ -115,3 +115,7 @@ func (s *Subscriber) Close(fn func()) error {
 	})
 	return errorFrom(C.a0go_subscriber_close(&s.c, C.uintptr_t(callbackId)))
 }
+
+func (s *Subscriber) AwaitClose() error {
+	return errorFrom(C.a0_subscriber_await_close(&s.c))
+}

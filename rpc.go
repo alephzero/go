@@ -54,6 +54,10 @@ func (rs *RpcServer) Close(fn func()) error {
 	return errorFrom(C.a0go_rpc_server_close(&rs.c, C.uintptr_t(callbackId)))
 }
 
+func (rs *RpcServer) AwaitClose() error {
+	return errorFrom(C.a0_rpc_server_await_close(&rs.c))
+}
+
 func (rs *RpcServer) Reply(reqId string, resp Packet) error {
 	cReqId := C.CString(reqId)
 	defer C.free(unsafe.Pointer(cReqId))
@@ -87,6 +91,10 @@ func (rc *RpcClient) Close(fn func()) error {
 		}
 	})
 	return errorFrom(C.a0go_rpc_client_close(&rc.c, C.uintptr_t(callbackId)))
+}
+
+func (rc *RpcClient) AwaitClose() error {
+	return errorFrom(C.a0_rpc_client_await_close(&rc.c))
 }
 
 func (rc *RpcClient) Send(pkt Packet, replyCb func(Packet)) error {
