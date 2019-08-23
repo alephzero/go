@@ -5,7 +5,7 @@ RUN go get github.com/huytd/playgo
 RUN cd / &&                                                 \
     git clone https://github.com/alephzero/alephzero.git && \
     cd /alephzero &&                                        \
-    make  install -j &&                                      \
+    make install -j &&                                      \
     cd / &&                                                 \
     rm -rf /alephzero
 

@@ -27,43 +27,43 @@ func (tm *TopicManager) Close() error {
 	return errorFrom(C.a0_topic_manager_close(&tm.c))
 }
 
-func (tm *TopicManager) ConfigTopic() (shm ShmObj, err error) {
-	err = errorFrom(C.a0_topic_manager_config_topic(&tm.c, &shm.c))
+func (tm *TopicManager) OpenConfigTopic() (shm ShmObj, err error) {
+	err = errorFrom(C.a0_topic_manager_open_config_topic(&tm.c, &shm.c))
 	return
 }
 
-func (tm *TopicManager) PublisherTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenPublisherTopic(name string) (shm ShmObj, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_publisher_topic(&tm.c, cName, &shm.c))
+	err = errorFrom(C.a0_topic_manager_open_publisher_topic(&tm.c, cName, &shm.c))
 	return
 }
 
-func (tm *TopicManager) SubscriberTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenSubscriberTopic(name string) (shm ShmObj, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_subscriber_topic(&tm.c, cName, &shm.c))
+	err = errorFrom(C.a0_topic_manager_open_subscriber_topic(&tm.c, cName, &shm.c))
 	return
 }
 
-func (tm *TopicManager) RpcServerTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenRpcServerTopic(name string) (shm ShmObj, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_rpc_server_topic(&tm.c, cName, &shm.c))
+	err = errorFrom(C.a0_topic_manager_open_rpc_server_topic(&tm.c, cName, &shm.c))
 	return
 }
 
-func (tm *TopicManager) RpcClientTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenRpcClientTopic(name string) (shm ShmObj, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_rpc_client_topic(&tm.c, cName, &shm.c))
+	err = errorFrom(C.a0_topic_manager_open_rpc_client_topic(&tm.c, cName, &shm.c))
 	return
 }
 
-func (tm *TopicManager) Unref(shm ShmObj) error {
-	return errorFrom(C.a0_topic_manager_unref(&tm.c, shm.c))
+func (tm *TopicManager) CloseTopic(shm ShmObj) error {
+	return errorFrom(C.a0_topic_manager_close_topic(&tm.c, shm.c))
 }
