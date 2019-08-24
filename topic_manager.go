@@ -64,6 +64,3 @@ func (tm *TopicManager) OpenRpcClientTopic(name string) (shm ShmObj, err error) 
 	return
 }
 
-func (tm *TopicManager) CloseTopic(shm ShmObj) error {
-	return errorFrom(C.a0_topic_manager_close_topic(&tm.c, shm.c))
-}
