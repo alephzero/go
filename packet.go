@@ -102,17 +102,6 @@ func (p Packet) Header(idx int) (hdr PacketHeader, err error) {
 	return
 }
 
-func (p Packet) FindHeader(key string) (val string, err error) {
-	cKey := C.CString(key)
-	defer C.free(unsafe.Pointer(cKey))
-	var cVal *C.char
-	if err = errorFrom(C.a0_packet_find_header(p.C(), cKey, &cVal)); err != nil {
-		return
-	}
-	val = C.GoString(cVal)
-	return
-}
-
 func (p Packet) Headers() (hdrs []PacketHeader, err error) {
 	n, err := p.NumHeaders()
 	if err != nil {
