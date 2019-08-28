@@ -100,7 +100,7 @@ func NewSubscriber(shm ShmObj, subInit SubscriberInit, subIter SubscriberIter, c
 	return
 }
 
-func (s *Subscriber) Close(fn func()) error {
+func (s *Subscriber) AsyncClose(fn func()) error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
@@ -112,9 +112,9 @@ func (s *Subscriber) Close(fn func()) error {
 			fn()
 		}
 	})
-	return errorFrom(C.a0go_subscriber_close(&s.c, C.uintptr_t(callbackId)))
+	return errorFrom(C.a0go_subscriber_async_close(&s.c, C.uintptr_t(callbackId)))
 }
 
-func (s *Subscriber) AwaitClose() error {
-	return errorFrom(C.a0_subscriber_await_close(&s.c))
+func (s *Subscriber) Close() error {
+	return errorFrom(C.a0_subscriber_close(&s.c))
 }

@@ -35,12 +35,12 @@ static inline errno_t a0go_subscriber_init(a0_subscriber_t* sub,
   return a0_subscriber_init(sub, shmobj, alloc, sub_init, sub_iter, packet_callback);
 }
 
-static inline errno_t a0go_subscriber_close(a0_subscriber_t* sub, uintptr_t callback_id) {
+static inline errno_t a0go_subscriber_async_close(a0_subscriber_t* sub, uintptr_t callback_id) {
   a0_callback_t callback = {
       .user_data = (void*)callback_id,
       .fn = a0go_callback,
   };
-  return a0_subscriber_close(sub, callback);
+  return a0_subscriber_async_close(sub, callback);
 }
 
 #endif  // A0_GO_PUBSUB_ADAPTER_H

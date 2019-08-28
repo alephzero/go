@@ -26,12 +26,12 @@ static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
   return a0_rpc_server_init(server, shmobj, alloc, onrequest, oncancel);
 }
 
-static inline errno_t a0go_rpc_server_close(a0_rpc_server_t* server, uintptr_t callback_id) {
+static inline errno_t a0go_rpc_server_async_close(a0_rpc_server_t* server, uintptr_t callback_id) {
   a0_callback_t callback = {
       .user_data = (void*)callback_id,
       .fn = a0go_callback,
   };
-  return a0_rpc_server_close(server, callback);
+  return a0_rpc_server_async_close(server, callback);
 }
 
 static inline errno_t a0go_rpc_client_init(a0_rpc_client_t* client,
@@ -44,12 +44,12 @@ static inline errno_t a0go_rpc_client_init(a0_rpc_client_t* client,
   return a0_rpc_client_init(client, shmobj, alloc);
 }
 
-static inline errno_t a0go_rpc_client_close(a0_rpc_client_t* client, uintptr_t callback_id) {
+static inline errno_t a0go_rpc_client_async_close(a0_rpc_client_t* client, uintptr_t callback_id) {
   a0_callback_t callback = {
       .user_data = (void*)callback_id,
       .fn = a0go_callback,
   };
-  return a0_rpc_client_close(client, callback);
+  return a0_rpc_client_async_close(client, callback);
 }
 
 static inline errno_t a0go_rpc_send(a0_rpc_client_t* client,

@@ -38,7 +38,7 @@ func NewRpcServer(shm ShmObj, onrequest func(Packet), oncancel func(string)) (rs
 	return
 }
 
-func (rs *RpcServer) Close(fn func()) error {
+func (rs *RpcServer) AsyncClose(fn func()) error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
@@ -51,11 +51,11 @@ func (rs *RpcServer) Close(fn func()) error {
 			fn()
 		}
 	})
-	return errorFrom(C.a0go_rpc_server_close(&rs.c, C.uintptr_t(callbackId)))
+	return errorFrom(C.a0go_rpc_server_async_close(&rs.c, C.uintptr_t(callbackId)))
 }
 
-func (rs *RpcServer) AwaitClose() error {
-	return errorFrom(C.a0_rpc_server_await_close(&rs.c))
+func (rs *RpcServer) Close() error {
+	return errorFrom(C.a0_rpc_server_close(&rs.c))
 }
 
 func (rs *RpcServer) Reply(reqId string, resp Packet) error {
@@ -81,7 +81,7 @@ func NewRpcClient(shm ShmObj) (rc RpcClient, err error) {
 	return
 }
 
-func (rc *RpcClient) Close(fn func()) error {
+func (rc *RpcClient) AsyncClose(fn func()) error {
 	var callbackId uintptr
 	callbackId = registerCallback(func() {
 		unregisterCallback(callbackId)
@@ -90,11 +90,11 @@ func (rc *RpcClient) Close(fn func()) error {
 			fn()
 		}
 	})
-	return errorFrom(C.a0go_rpc_client_close(&rc.c, C.uintptr_t(callbackId)))
+	return errorFrom(C.a0go_rpc_client_async_close(&rc.c, C.uintptr_t(callbackId)))
 }
 
-func (rc *RpcClient) AwaitClose() error {
-	return errorFrom(C.a0_rpc_client_await_close(&rc.c))
+func (rc *RpcClient) Close() error {
+	return errorFrom(C.a0_rpc_client_close(&rc.c))
 }
 
 func (rc *RpcClient) Send(pkt Packet, replyCb func(Packet)) error {
