@@ -6,6 +6,8 @@
 #include "common_adapter.h"
 #include "packet_adapter.h"
 
+extern void a0go_rpc_request_callback(void*, a0_rpc_request_t);
+
 static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
                                            a0_shmobj_t shmobj,
                                            uintptr_t alloc_id,
@@ -15,9 +17,9 @@ static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,
   };
-  a0_packet_callback_t onrequest = {
+  a0_rpc_request_callback_t onrequest = {
       .user_data = (void*)onrequest_id,
-      .fn = a0go_packet_callback,
+      .fn = a0go_rpc_request_callback,
   };
   a0_packet_id_callback_t oncancel = {
       .user_data = (void*)oncancel_id,

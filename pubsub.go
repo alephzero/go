@@ -115,6 +115,11 @@ func (s *Subscriber) AsyncClose(fn func()) error {
 	return errorFrom(C.a0go_subscriber_async_close(&s.c, C.uintptr_t(callbackId)))
 }
 
-func (s *Subscriber) Close() error {
-	return errorFrom(C.a0_subscriber_close(&s.c))
+func (s *Subscriber) Close() (err error) {
+	err = errorFrom(C.a0_subscriber_close(&s.c))
+	unregisterPacketCallback(s.packetCallbackId)
+	if s.allocId > 0 {
+		unregisterAlloc(s.allocId)
+	}
+	return
 }
