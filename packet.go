@@ -134,7 +134,7 @@ func (p Packet) Id() (val string, err error) {
 	}
 	// TODO: There must be a better way!
 	var goBytes []byte
-	for i := 0; i < C.A0_PACKET_ID_SIZE; i++ {
+	for i := 0; i < C.A0_PACKET_ID_SIZE - 1; i++ {
 		goBytes = append(goBytes, byte(cVal[i]))
 	}
 	val = string(goBytes)
