@@ -6,9 +6,9 @@ if [[ "$(docker images -q alephzero_playground 2> /dev/null)" == "" ]]; then
   exit 1
 fi
 
-docker run                                                  \
-  --rm                                                      \
-  -it                                                       \
-  -v "$(realpath ..)":/root/go/src/github.com/alephzero/go/ \
-  -p 12385:12385                                            \
+docker run                                          \
+  --rm                                              \
+  -it                                               \
+  -v "${PWD}":/root/go/src/github.com/alephzero/go/ \
+  -p 12385:12385                                    \
   alephzero_playground
