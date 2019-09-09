@@ -27,12 +27,12 @@ func (tm *TopicManager) Close() error {
 	return errorFrom(C.a0_topic_manager_close(&tm.c))
 }
 
-func (tm *TopicManager) OpenConfigTopic() (shm ShmObj, err error) {
+func (tm *TopicManager) OpenConfigTopic() (shm Shm, err error) {
 	err = errorFrom(C.a0_topic_manager_open_config_topic(&tm.c, &shm.c))
 	return
 }
 
-func (tm *TopicManager) OpenPublisherTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenPublisherTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
@@ -40,7 +40,7 @@ func (tm *TopicManager) OpenPublisherTopic(name string) (shm ShmObj, err error) 
 	return
 }
 
-func (tm *TopicManager) OpenSubscriberTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenSubscriberTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
@@ -48,7 +48,7 @@ func (tm *TopicManager) OpenSubscriberTopic(name string) (shm ShmObj, err error)
 	return
 }
 
-func (tm *TopicManager) OpenRpcServerTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenRpcServerTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
@@ -56,7 +56,7 @@ func (tm *TopicManager) OpenRpcServerTopic(name string) (shm ShmObj, err error) 
 	return
 }
 
-func (tm *TopicManager) OpenRpcClientTopic(name string) (shm ShmObj, err error) {
+func (tm *TopicManager) OpenRpcClientTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
