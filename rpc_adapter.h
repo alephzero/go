@@ -9,7 +9,7 @@
 extern void a0go_rpc_request_callback(void*, a0_rpc_request_t);
 
 static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
-                                           a0_shmobj_t shmobj,
+                                           a0_shm_t shm,
                                            uintptr_t alloc_id,
                                            uintptr_t onrequest_id,
                                            uintptr_t oncancel_id) {
@@ -25,7 +25,7 @@ static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
       .user_data = (void*)oncancel_id,
       .fn = a0go_packet_id_callback,
   };
-  return a0_rpc_server_init(server, shmobj, alloc, onrequest, oncancel);
+  return a0_rpc_server_init(server, shm.buf, alloc, onrequest, oncancel);
 }
 
 static inline errno_t a0go_rpc_server_async_close(a0_rpc_server_t* server, uintptr_t callback_id) {
@@ -37,13 +37,13 @@ static inline errno_t a0go_rpc_server_async_close(a0_rpc_server_t* server, uintp
 }
 
 static inline errno_t a0go_rpc_client_init(a0_rpc_client_t* client,
-                                           a0_shmobj_t shmobj,
+                                           a0_shm_t shm,
                                            uintptr_t alloc_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,
   };
-  return a0_rpc_client_init(client, shmobj, alloc);
+  return a0_rpc_client_init(client, shm.buf, alloc);
 }
 
 static inline errno_t a0go_rpc_client_async_close(a0_rpc_client_t* client, uintptr_t callback_id) {

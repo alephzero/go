@@ -11,15 +11,15 @@ import (
 	"unsafe"
 )
 
-type ShmObjOptions struct {
+type ShmOptions struct {
 	Size int
 }
 
-type ShmObj struct {
-	c C.a0_shmobj_t
+type Shm struct {
+	c C.a0_shm_t
 }
 
-func ShmOpen(path string, opts *ShmObjOptions) (shm ShmObj, err error) {
+func ShmOpen(path string, opts *ShmOptions) (shm Shm, err error) {
 	pathCStr := C.CString(path)
 	defer C.free(unsafe.Pointer(pathCStr))
 
@@ -38,6 +38,6 @@ func ShmUnlink(path string) error {
 	return errorFrom(C.a0_shmobj_unlink(pathCStr))
 }
 
-func (shm *ShmObj) Close() error {
+func (shm *Shm) Close() error {
 	return errorFrom(C.a0_shmobj_close(&shm.c))
 }
