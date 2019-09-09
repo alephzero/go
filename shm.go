@@ -2,7 +2,7 @@ package alephzero
 
 /*
 #cgo pkg-config: alephzero
-#include <a0/shmobj.h>
+#include <a0/shm.h>
 #include <stdlib.h>  // free
 */
 import "C"
@@ -23,11 +23,11 @@ func ShmOpen(path string, opts *ShmOptions) (shm Shm, err error) {
 	pathCStr := C.CString(path)
 	defer C.free(unsafe.Pointer(pathCStr))
 
-	var cOpts C.a0_shmobj_options_t
+	var cOpts C.a0_shm_options_t
 	if opts != nil {
 		cOpts.size = C.off_t(opts.Size)
 	}
-	err = errorFrom(C.a0_shmobj_open(pathCStr, &cOpts, &shm.c))
+	err = errorFrom(C.a0_shm_open(pathCStr, &cOpts, &shm.c))
 	return
 }
 
@@ -35,9 +35,9 @@ func ShmUnlink(path string) error {
 	pathCStr := C.CString(path)
 	defer C.free(unsafe.Pointer(pathCStr))
 
-	return errorFrom(C.a0_shmobj_unlink(pathCStr))
+	return errorFrom(C.a0_shm_unlink(pathCStr))
 }
 
 func (shm *Shm) Close() error {
-	return errorFrom(C.a0_shmobj_close(&shm.c))
+	return errorFrom(C.a0_shm_close(&shm.c))
 }
