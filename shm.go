@@ -41,3 +41,7 @@ func ShmUnlink(path string) error {
 func (shm *Shm) Close() error {
 	return errorFrom(C.a0_shm_close(&shm.c))
 }
+
+func (shm *Shm) Path() string {
+	return C.GoString(shm.c.path)
+}

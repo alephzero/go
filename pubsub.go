@@ -52,7 +52,7 @@ func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) 
 		*out = ss.activePkt.C()
 	})
 
-	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
+	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.buf, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
 	return
 }
 
@@ -96,7 +96,7 @@ func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, call
 		callback(activePkt)
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c.buf, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
