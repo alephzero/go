@@ -15,11 +15,11 @@ type TopicManager struct {
 	c C.a0_topic_manager_t
 }
 
-func NewTopicManagerFromJSON(json string) (tm TopicManager, err error) {
+func NewTopicManager(json string) (tm TopicManager, err error) {
 	cJson := C.CString(json)
 	defer C.free(unsafe.Pointer(cJson))
 
-	err = errorFrom(C.a0_topic_manager_init_jsonstr(&tm.c, cJson))
+	err = errorFrom(C.a0_topic_manager_init(&tm.c, cJson))
 	return
 }
 
