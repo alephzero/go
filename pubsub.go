@@ -123,3 +123,15 @@ func (s *Subscriber) Close() (err error) {
 	}
 	return
 }
+
+func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, err error) {
+	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+		pkt = make([]byte, int(size))
+		*out = pkt.C()
+	})
+	defer unregisterAlloc(allocId)
+
+	cPkt := pkt.C()
+	err = errorFrom(C.a0go_subscriber_read_one(shm.c.buf, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
+	return
+}

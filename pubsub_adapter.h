@@ -44,4 +44,16 @@ static inline errno_t a0go_subscriber_async_close(a0_subscriber_t* sub, uintptr_
   return a0_subscriber_async_close(sub, callback);
 }
 
+static inline errno_t a0go_subscriber_read_one(a0_buf_t arena,
+                                               uintptr_t alloc_id,
+                                               a0_subscriber_init_t sub_init,
+                                               int flags,
+                                               a0_packet_t* out) {
+  a0_alloc_t alloc = {
+      .user_data = (void*)alloc_id,
+      .fn = a0go_alloc,
+  };
+  return a0_subscriber_read_one(arena, alloc, sub_init, flags, out);
+}
+
 #endif  // A0_GO_PUBSUB_ADAPTER_H
