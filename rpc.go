@@ -33,14 +33,15 @@ type RpcServer struct {
 
 func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (rs RpcServer, err error) {
 	var activePkt Packet
-
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		activePkt = make([]byte, int(size))
 		*out = activePkt.C()
 	})
 
+	var activeReq RpcRequest
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
-		onrequest(RpcRequest{cReq})
+		activeReq.c = cReq
+		onrequest(activeReq)
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cReqId *C.char) {
