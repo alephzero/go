@@ -32,7 +32,8 @@ static inline errno_t a0go_prpc_server_init(a0_prpc_server_t* server,
   return a0_prpc_server_init(server, arena, alloc, onconnect, oncancel);
 }
 
-static inline errno_t a0go_prpc_server_async_close(a0_prpc_server_t* server, uintptr_t callback_id) {
+static inline errno_t a0go_prpc_server_async_close(a0_prpc_server_t* server,
+                                                   uintptr_t callback_id) {
   a0_callback_t callback = {
       .user_data = (void*)callback_id,
       .fn = a0go_callback,
@@ -50,7 +51,8 @@ static inline errno_t a0go_prpc_client_init(a0_prpc_client_t* client,
   return a0_prpc_client_init(client, arena, alloc);
 }
 
-static inline errno_t a0go_prpc_client_async_close(a0_prpc_client_t* client, uintptr_t callback_id) {
+static inline errno_t a0go_prpc_client_async_close(a0_prpc_client_t* client,
+                                                   uintptr_t callback_id) {
   a0_callback_t callback = {
       .user_data = (void*)callback_id,
       .fn = a0go_callback,
