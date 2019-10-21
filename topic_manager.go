@@ -64,3 +64,18 @@ func (tm *TopicManager) OpenRpcClientTopic(name string) (shm Shm, err error) {
 	return
 }
 
+func (tm *TopicManager) OpenPrpcServerTopic(name string) (shm Shm, err error) {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	err = errorFrom(C.a0_topic_manager_open_prpc_server_topic(&tm.c, cName, &shm.c))
+	return
+}
+
+func (tm *TopicManager) OpenPrpcClientTopic(name string) (shm Shm, err error) {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	err = errorFrom(C.a0_topic_manager_open_prpc_client_topic(&tm.c, cName, &shm.c))
+	return
+}
