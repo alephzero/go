@@ -29,19 +29,20 @@ type PrpcServer struct {
 	allocId     uintptr
 	onconnectId uintptr
 	oncancelId  uintptr
+	// Memory must survive between the alloc and the connect callback.
+	activePkt Packet
 }
 
-func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string)) (rs PrpcServer, err error) {
-	var activePkt Packet
+func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string)) (rs *PrpcServer, err error) {
+	rs = &PrpcServer{}
+
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = make([]byte, int(size))
-		*out = activePkt.C()
+		rs.activePkt = make([]byte, int(size))
+		*out = rs.activePkt.C()
 	})
 
-	var activeConn PrpcConnection
 	rs.onconnectId = registerPrpcConnectionCallback(func(cConn C.a0_prpc_connection_t) {
-		activeConn.c = cConn
-		onconnect(activeConn)
+		onconnect(PrpcConnection{cConn})
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cConnId *C.char) {
@@ -85,7 +86,9 @@ type PrpcClient struct {
 	activePkt Packet
 }
 
-func NewPrpcClient(shm Shm) (rc PrpcClient, err error) {
+func NewPrpcClient(shm Shm) (rc *PrpcClient, err error) {
+	rc = &PrpcClient{}
+
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		rc.activePkt = make([]byte, int(size))
 		*out = rc.activePkt.C()

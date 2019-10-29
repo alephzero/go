@@ -11,7 +11,8 @@ type Publisher struct {
 	c C.a0_publisher_t
 }
 
-func NewPublisher(shm Shm) (p Publisher, err error) {
+func NewPublisher(shm Shm) (p *Publisher, err error) {
+	p = &Publisher{}
 	err = errorFrom(C.a0_publisher_init(&p.c, shm.c.buf))
 	return
 }
@@ -46,7 +47,9 @@ type SubscriberSync struct {
 	activePkt Packet
 }
 
-func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) (ss SubscriberSync, err error) {
+func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) (ss *SubscriberSync, err error) {
+	ss = &SubscriberSync{}
+
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		ss.activePkt = make([]byte, int(size))
 		*out = ss.activePkt.C()
@@ -84,9 +87,10 @@ type Subscriber struct {
 	packetCallbackId uintptr
 }
 
-func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s Subscriber, err error) {
-	var activePkt Packet
+func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s *Subscriber, err error) {
+	s = &Subscriber{}
 
+	var activePkt Packet
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		activePkt = make([]byte, int(size))
 		*out = activePkt.C()

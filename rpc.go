@@ -29,19 +29,20 @@ type RpcServer struct {
 	allocId     uintptr
 	onrequestId uintptr
 	oncancelId  uintptr
+	// Memory must survive between the alloc and the request callback.
+	activePkt Packet
 }
 
-func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (rs RpcServer, err error) {
-	var activePkt Packet
+func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (rs *RpcServer, err error) {
+	rs = &RpcServer{}
+
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = make([]byte, int(size))
-		*out = activePkt.C()
+		rs.activePkt = make([]byte, int(size))
+		*out = rs.activePkt.C()
 	})
 
-	var activeReq RpcRequest
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
-		activeReq.c = cReq
-		onrequest(activeReq)
+		onrequest(RpcRequest{cReq})
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cReqId *C.char) {
@@ -85,7 +86,9 @@ type RpcClient struct {
 	activePkt Packet
 }
 
-func NewRpcClient(shm Shm) (rc RpcClient, err error) {
+func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
+	rc = &RpcClient{}
+
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		rc.activePkt = make([]byte, int(size))
 		*out = rc.activePkt.C()
