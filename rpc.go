@@ -29,24 +29,25 @@ type RpcServer struct {
 	allocId     uintptr
 	onrequestId uintptr
 	oncancelId  uintptr
-	// Memory must survive between the alloc and the request callback.
-	activePkt Packet
 }
 
 func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (rs *RpcServer, err error) {
 	rs = &RpcServer{}
 
+	var activePkt Packet
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		rs.activePkt = make([]byte, int(size))
-		*out = rs.activePkt.C()
+		activePkt = make([]byte, int(size))
+		*out = activePkt.C()
 	})
 
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
 		onrequest(RpcRequest{cReq})
+		_ = activePkt  // keep alive
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cReqId *C.char) {
 		oncancel(C.GoString(cReqId))
+		_ = activePkt  // keep alive
 	})
 
 	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c.buf, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
