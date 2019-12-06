@@ -10,5 +10,6 @@ docker run                                          \
   --rm                                              \
   -it                                               \
   -v "${PWD}":/root/go/src/github.com/alephzero/go/ \
+  -e "GODEBUG=cgocheck=2"                           \
   -p 12385:12385                                    \
   alephzero_playground

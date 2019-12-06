@@ -52,7 +52,7 @@ func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) 
 
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		ss.activePkt = make([]byte, int(size))
-		*out = ss.activePkt.C()
+		ss.activePkt.CBuf(out)
 	})
 
 	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.buf, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
@@ -93,7 +93,7 @@ func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, call
 	var activePkt Packet
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		activePkt = make([]byte, int(size))
-		*out = activePkt.C()
+		activePkt.CBuf(out)
 	})
 
 	s.packetCallbackId = registerPacketCallback(func(_ C.a0_packet_t) {
@@ -131,7 +131,7 @@ func (s *Subscriber) Close() (err error) {
 func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, err error) {
 	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		pkt = make([]byte, int(size))
-		*out = pkt.C()
+		pkt.CBuf(out)
 	})
 	defer unregisterAlloc(allocId)
 

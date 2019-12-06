@@ -50,7 +50,7 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 		out.size = size
 		if size > 0 {
 			pkt = make([]byte, int(size))
-			out.ptr = (*C.uint8_t)(&pkt[0])
+			pkt.CBuf(out)
 		}
 	})
 	defer unregisterAlloc(allocId)
@@ -66,12 +66,22 @@ func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
 	return
 }
 
-func (p Packet) C() (cPkt C.a0_packet_t) {
-	cPkt.size = C.size_t(len(p))
-	if cPkt.size > 0 {
-		cPkt.ptr = (*C.uint8_t)(&p[0])
-	}
+func (p Packet) C() (out C.a0_packet_t) {
+	p.CPkt(&out)
 	return
+}
+
+func (p Packet) CPkt(out *C.a0_packet_t) {
+	p.CBuf((*C.a0_buf_t)(out))
+}
+
+func (p Packet) CBuf(out *C.a0_buf_t) {
+	out.size = C.size_t(len(p))
+	if out.size > 0 {
+		// Go does not allow managed pointers to cross into C.
+		// We bypass that restriction with this hack.
+		C.a0go_copy_ptr((**C.uint8_t)(&out.ptr), C.uintptr_t(uintptr(unsafe.Pointer(&p[0]))))
+	}
 }
 
 func PacketIdKey() string {

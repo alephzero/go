@@ -37,7 +37,7 @@ func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (r
 	var activePkt Packet
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		activePkt = make([]byte, int(size))
-		*out = activePkt.C()
+		activePkt.CBuf(out)
 	})
 
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
@@ -92,7 +92,7 @@ func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
 
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
 		rc.activePkt = make([]byte, int(size))
-		*out = rc.activePkt.C()
+		rc.activePkt.CBuf(out)
 	})
 
 	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c.buf, C.uintptr_t(rc.allocId)))
