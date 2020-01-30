@@ -14,7 +14,11 @@ static inline errno_t a0go_packet_build(size_t num_headers,
       .user_data = (void*)alloc_id,
       .fn = a0go_alloc,
   };
-  return a0_packet_build(num_headers, headers, payload, alloc, out);
+  a0_packet_header_list_t hdr_list = {
+      .hdrs = headers,
+      .size = num_headers,
+  };
+  return a0_packet_build(hdr_list, payload, alloc, out);
 }
 
 extern void a0go_packet_callback(void*, a0_packet_t);
