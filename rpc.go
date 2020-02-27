@@ -21,7 +21,9 @@ func (req *RpcRequest) Packet() Packet {
 }
 
 func (req *RpcRequest) Reply(resp Packet) error {
-	return errorFrom(C.a0_rpc_reply(req.c, resp.C()))
+	cPkt := resp.c()
+	defer freeCPacket(cPkt)
+	return errorFrom(C.a0_rpc_reply(req.c, cPkt))
 }
 
 type RpcServer struct {
@@ -34,20 +36,20 @@ type RpcServer struct {
 func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (rs *RpcServer, err error) {
 	rs = &RpcServer{}
 
-	var activePkt Packet
+	var activePktSpace []byte
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = make([]byte, int(size))
-		activePkt.CBuf(out)
+		activePktSpace = make([]byte, int(size))
+		wrapGoMem(activePktSpace, out)
 	})
 
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
 		onrequest(RpcRequest{cReq})
-		_ = activePkt  // keep alive
+		_ = activePktSpace  // keep alive
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cReqId *C.char) {
 		oncancel(C.GoString(cReqId))
-		_ = activePkt  // keep alive
+		_ = activePktSpace  // keep alive
 	})
 
 	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c.buf, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
@@ -84,15 +86,15 @@ type RpcClient struct {
 	c       C.a0_rpc_client_t
 	allocId uintptr
 	// Memory must survive between the alloc and replyCb.
-	activePkt Packet
+	activePktSpace []byte
 }
 
 func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
 	rc = &RpcClient{}
 
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		rc.activePkt = make([]byte, int(size))
-		rc.activePkt.CBuf(out)
+		rc.activePktSpace = make([]byte, int(size))
+		wrapGoMem(rc.activePktSpace, out)
 	})
 
 	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c.buf, C.uintptr_t(rc.allocId)))
@@ -123,7 +125,11 @@ func (rc *RpcClient) Send(pkt Packet, replyCb func(Packet)) error {
 		replyCb(packetFromC(cPkt))
 		unregisterPacketCallback(packetCallbackId)
 	})
-	return errorFrom(C.a0go_rpc_send(&rc.c, pkt.C(), C.uintptr_t(packetCallbackId)))
+
+	cPkt := pkt.c()
+	defer freeCPacket(cPkt)
+
+	return errorFrom(C.a0go_rpc_send(&rc.c, cPkt, C.uintptr_t(packetCallbackId)))
 }
 
 func (rc *RpcClient) Cancel(reqId string) error {

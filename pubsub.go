@@ -22,7 +22,9 @@ func (p *Publisher) Close() error {
 }
 
 func (p *Publisher) Pub(pkt Packet) error {
-	return errorFrom(C.a0_pub(&p.c, pkt.C()))
+	cPkt := pkt.c()
+	defer freeCPacket(cPkt)
+	return errorFrom(C.a0_pub(&p.c, cPkt))
 }
 
 type SubscriberInit int
@@ -44,15 +46,15 @@ type SubscriberSync struct {
 	c       C.a0_subscriber_sync_t
 	allocId uintptr
 	// Memory must survive between the alloc and Next.
-	activePkt Packet
+	activePktSpace []byte
 }
 
 func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) (ss *SubscriberSync, err error) {
 	ss = &SubscriberSync{}
 
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		ss.activePkt = make([]byte, int(size))
-		ss.activePkt.CBuf(out)
+		ss.activePktSpace = make([]byte, int(size))
+		wrapGoMem(ss.activePktSpace, out)
 	})
 
 	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.buf, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
@@ -90,14 +92,14 @@ type Subscriber struct {
 func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s *Subscriber, err error) {
 	s = &Subscriber{}
 
-	var activePkt Packet
+	var activePktSpace []byte
 	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = make([]byte, int(size))
-		activePkt.CBuf(out)
+		activePktSpace = make([]byte, int(size))
+		wrapGoMem(activePktSpace, out)
 	})
 
-	s.packetCallbackId = registerPacketCallback(func(_ C.a0_packet_t) {
-		callback(activePkt)
+	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+		callback(packetFromC(cPkt))
 	})
 
 	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c.buf, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
@@ -129,13 +131,16 @@ func (s *Subscriber) Close() (err error) {
 }
 
 func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, err error) {
+	var pktSpace []byte
 	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		pkt = make([]byte, int(size))
-		pkt.CBuf(out)
+		pktSpace = make([]byte, int(size))
+		wrapGoMem(pktSpace, out)
 	})
 	defer unregisterAlloc(allocId)
 
-	cPkt := pkt.C()
+	cPkt := C.a0_packet_t{}
 	err = errorFrom(C.a0go_subscriber_read_one(shm.c.buf, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
+	pkt = packetFromC(cPkt)
+	copy(pkt.Payload, pkt.Payload)
 	return
 }

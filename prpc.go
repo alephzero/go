@@ -21,7 +21,9 @@ func (conn *PrpcConnection) Packet() Packet {
 }
 
 func (conn *PrpcConnection) Send(prog Packet, done bool) error {
-	return errorFrom(C.a0_prpc_send(conn.c, prog.C(), C.bool(done)))
+	cPkt := prog.c()
+	defer freeCPacket(cPkt)
+	return errorFrom(C.a0_prpc_send(conn.c, cPkt, C.bool(done)))
 }
 
 type PrpcServer struct {
@@ -34,20 +36,20 @@ type PrpcServer struct {
 func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string)) (rs *PrpcServer, err error) {
 	rs = &PrpcServer{}
 
-	var activePkt Packet
+	var activePktSpace []byte
 	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		activePkt = make([]byte, int(size))
-		activePkt.CBuf(out)
+		activePktSpace = make([]byte, int(size))
+		wrapGoMem(activePktSpace, out)
 	})
 
 	rs.onconnectId = registerPrpcConnectionCallback(func(cConn C.a0_prpc_connection_t) {
 		onconnect(PrpcConnection{cConn})
-		_ = activePkt  // keep alive
+		_ = activePktSpace  // keep alive
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cConnId *C.char) {
 		oncancel(C.GoString(cConnId))
-		_ = activePkt  // keep alive
+		_ = activePktSpace  // keep alive
 	})
 
 	err = errorFrom(C.a0go_prpc_server_init(&rs.c, shm.c.buf, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onconnectId), C.uintptr_t(rs.oncancelId)))
@@ -84,15 +86,15 @@ type PrpcClient struct {
 	c       C.a0_prpc_client_t
 	allocId uintptr
 	// Memory must survive between the alloc and replyCb.
-	activePkt Packet
+	activePktSpace []byte
 }
 
 func NewPrpcClient(shm Shm) (rc *PrpcClient, err error) {
 	rc = &PrpcClient{}
 
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		rc.activePkt = make([]byte, int(size))
-		rc.activePkt.CBuf(out)
+		rc.activePktSpace = make([]byte, int(size))
+		wrapGoMem(rc.activePktSpace, out)
 	})
 
 	err = errorFrom(C.a0go_prpc_client_init(&rc.c, shm.c.buf, C.uintptr_t(rc.allocId)))
@@ -125,7 +127,11 @@ func (rc *PrpcClient) Connect(pkt Packet, progCb func(Packet, bool)) error {
 			unregisterPrpcCallback(prpcCallbackId)
 		}
 	})
-	return errorFrom(C.a0go_prpc_connect(&rc.c, pkt.C(), C.uintptr_t(prpcCallbackId)))
+
+	cPkt := pkt.c()
+	defer freeCPacket(cPkt)
+
+	return errorFrom(C.a0go_prpc_connect(&rc.c, cPkt, C.uintptr_t(prpcCallbackId)))
 }
 
 func (rc *PrpcClient) Cancel(reqId string) error {

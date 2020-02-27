@@ -12,143 +12,80 @@ import (
 	"unsafe"
 )
 
-type PacketHeader struct {
-	Key, Val string
+type Packet struct {
+	id      string
+	Headers map[string][]string
+	Payload []byte
 }
 
-type Packet []byte
+func NewPacket(headers map[string][]string, payload []byte) (pkt Packet) {
+	cPkt := C.a0_packet_t{}
+	C.a0_packet_init(&cPkt)
 
-func packetFromC(cPkt C.a0_packet_t) Packet {
-	return C.GoBytes(unsafe.Pointer(cPkt.ptr), C.int(cPkt.size))
-}
-
-func NewPacket(hdrs []PacketHeader, payload []byte) (pkt Packet, err error) {
-	// Package headers.
-	var cHdrs unsafe.Pointer
-	if len(hdrs) > 0 {
-		cHdrs = C.malloc(C.size_t(len(hdrs) * int(unsafe.Sizeof(C.a0_packet_header_t{}))))
-		defer C.free(cHdrs)
-
-		for i, hdr := range hdrs {
-			cHdr := &(*[1 << 30]C.a0_packet_header_t)(cHdrs)[i]
-
-			cKey := C.CString(hdr.Key)
-			defer C.free(unsafe.Pointer(cKey))
-			cHdr.key = cKey
-
-			cVal := C.CString(hdr.Val)
-			defer C.free(unsafe.Pointer(cVal))
-			cHdr.val = cVal
-		}
-	}
-
-	// Package payload.
-	cPayload := cBufFrom(payload)
-
-	// Create allocator.
-	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
-		out.size = size
-		if size > 0 {
-			pkt = make([]byte, int(size))
-			pkt.CBuf(out)
-		}
-	})
-	defer unregisterAlloc(allocId)
-
-	// Compile packet.
-	err = errorFrom(C.a0go_packet_build(
-		C.size_t(len(hdrs)),
-		(*C.a0_packet_header_t)(cHdrs),
-		cPayload,
-		C.uintptr_t(allocId),
-		nil))
-
+	idCStr := ([37]C.char)(cPkt.id)
+	pkt.id = C.GoStringN(&idCStr[0], 36)
+	pkt.Headers = headers
+	pkt.Payload = payload
 	return
 }
 
-func (p Packet) C() (out C.a0_packet_t) {
-	p.CPkt(&out)
-	return
-}
-
-func (p Packet) CPkt(out *C.a0_packet_t) {
-	p.CBuf((*C.a0_buf_t)(out))
-}
-
-func (p Packet) CBuf(out *C.a0_buf_t) {
-	out.size = C.size_t(len(p))
-	if out.size > 0 {
-		// Go does not allow managed pointers to cross into C.
-		// We bypass that restriction with this hack.
-		C.a0go_copy_ptr((**C.uint8_t)(&out.ptr), C.uintptr_t(uintptr(unsafe.Pointer(&p[0]))))
-	}
-}
-
-func PacketIdKey() string {
-	return C.GoString(C.a0_packet_id_key())
+func (p *Packet) ID() string {
+	return p.id
 }
 
 func PacketDepKey() string {
 	return C.GoString(C.a0_packet_dep_key())
 }
 
-func (p Packet) NumHeaders() (cnt int, err error) {
-	var ucnt C.size_t
-	err = errorFrom(C.a0_packet_num_headers(p.C(), &ucnt))
-	if err != nil {
-		return
+func packetFromC(cPkt C.a0_packet_t) (pkt Packet) {
+	pkt.id = string(C.GoBytes(unsafe.Pointer(&cPkt.id), 36))
+	pkt.Headers = make(map[string][]string)
+	cHdrs := (*[1 << 30]C.a0_packet_header_t)(unsafe.Pointer(cPkt.headers_block.headers))[:int(cPkt.headers_block.size):int(cPkt.headers_block.size)]
+	for i := C.uint64_t(0); i < cPkt.headers_block.size; i++ {
+		hdr := &cHdrs[i]
+		hdrKey := C.GoString(hdr.key)
+		hdrVal := C.GoString(hdr.val)
+		pkt.Headers[hdrKey] = append(pkt.Headers[hdrKey], hdrVal)
 	}
-	cnt = int(ucnt)
+	pkt.Payload = (*[1 << 30]byte)(unsafe.Pointer(cPkt.payload.ptr))[:int(cPkt.payload.size):int(cPkt.payload.size)]
 	return
 }
 
-func (p Packet) Header(idx int) (hdr PacketHeader, err error) {
-	var cHdr C.a0_packet_header_t
-	if err = errorFrom(C.a0_packet_header(p.C(), C.size_t(idx), &cHdr)); err != nil {
-		return
+func (p *Packet) c() (cPkt C.a0_packet_t) {
+	for i := 0; i < 36; i++ {
+		cPkt.id[i] = (C.char)(p.id[i])
 	}
-	hdr.Key = C.GoString(cHdr.key)
-	hdr.Val = C.GoString(cHdr.val)
-	return
-}
+	wrapGoMem(p.Payload, &cPkt.payload)
 
-func (p Packet) Headers() (hdrs []PacketHeader, err error) {
-	n, err := p.NumHeaders()
-	if err != nil {
-		return
+	numHeaders := 0
+	for _, v := range p.Headers {
+		numHeaders += len(v)
 	}
-	for i := 0; i < n; i++ {
-		var hdr PacketHeader
-		hdr, err = p.Header(i)
-		if err != nil {
-			return
+
+	cPkt.headers_block.size = C.size_t(numHeaders)
+	cPkt.headers_block.headers = (*C.a0_packet_header_t)(C.malloc(C.size_t(numHeaders) * C.size_t(unsafe.Sizeof(C.a0_packet_header_t{}))))
+
+	cHdrs := (*[1 << 30]C.a0_packet_header_t)(unsafe.Pointer(cPkt.headers_block.headers))[:int(cPkt.headers_block.size):int(cPkt.headers_block.size)]
+
+	i := 0
+	for k, vs := range p.Headers {
+		cHdrs[i].key = C.CString(k)
+		for _, v := range vs {
+			cHdrs[i].val = C.CString(v)
+			i++
 		}
-		hdrs = append(hdrs, hdr)
 	}
+
 	return
 }
 
-func (p Packet) Payload() (payload []byte, err error) {
-	var cBuf C.a0_buf_t
-	if err = errorFrom(C.a0_packet_payload(p.C(), &cBuf)); err != nil {
-		return
+func freeCPacket(cPkt C.a0_packet_t) {
+	cHdrs := (*[1 << 30]C.a0_packet_header_t)(unsafe.Pointer(cPkt.headers_block.headers))[:int(cPkt.headers_block.size):int(cPkt.headers_block.size)]
+	for i := C.uint64_t(0); i < cPkt.headers_block.size; i++ {
+		C.free(unsafe.Pointer(cHdrs[i].key))
+		C.free(unsafe.Pointer(cHdrs[i].val))
 	}
-	payload = goBufFrom(cBuf)
-	return
-}
-
-func (p Packet) Id() (val string, err error) {
-	var cVal C.a0_packet_id_t
-	if err = errorFrom(C.a0_packet_id(p.C(), &cVal)); err != nil {
-		return
-	}
-	// TODO: There must be a better way!
-	var goBytes []byte
-	for i := 0; i < C.A0_PACKET_ID_SIZE - 1; i++ {
-		goBytes = append(goBytes, byte(cVal[i]))
-	}
-	val = string(goBytes)
-	return
+	C.free(unsafe.Pointer(cPkt.headers_block.headers))
 }
 
 var (

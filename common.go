@@ -20,14 +20,16 @@ func errorFrom(err C.errno_t) error {
 	return syscall.Errno(err)
 }
 
-func goBufFrom(b C.a0_buf_t) []byte {
-	return (*[1 << 30]byte)(unsafe.Pointer(b.ptr))[:int(b.size):int(b.size)]
+// dst is a void**. src is a void*;
+// This function is *dst = src.
+func cpPtr(dst unsafe.Pointer, src unsafe.Pointer) {
+	C.a0go_copy_ptr(C.uintptr_t(uintptr(dst)), C.uintptr_t(uintptr(src)))
 }
 
-func cBufFrom(b []byte) (out C.a0_buf_t) {
-	out.size = C.size_t(len(b))
+func wrapGoMem(goMem []byte, out *C.a0_buf_t) {
+	out.size = C.size_t(len(goMem))
 	if out.size > 0 {
-		out.ptr = (*C.uint8_t)(&b[0])
+		cpPtr(unsafe.Pointer(&out.ptr), unsafe.Pointer(&goMem[0]))
 	}
 	return
 }

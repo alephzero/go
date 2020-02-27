@@ -10,7 +10,7 @@
 #include "packet_adapter.h"
 
 extern void a0go_prpc_connection_callback(void*, a0_prpc_connection_t);
-extern void a0go_prpc_callback(void*, a0_buf_t, bool);
+extern void a0go_prpc_callback(void*, a0_packet_t, bool);
 
 static inline errno_t a0go_prpc_server_init(a0_prpc_server_t* server,
                                             a0_buf_t arena,

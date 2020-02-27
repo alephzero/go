@@ -11,24 +11,106 @@ import (
 	"unsafe"
 )
 
-type TopicManager struct {
-	c C.a0_topic_manager_t
+type TopicAliasTarget struct {
+	Container string
+	Topic string
 }
 
-func NewTopicManager(json string) (tm TopicManager, err error) {
-	cJson := C.CString(json)
-	defer C.free(unsafe.Pointer(cJson))
+type TopicManager struct {
+	Container string
+	SubscriberAliases map[string]TopicAliasTarget
+	RpcClientAliases map[string]TopicAliasTarget
+	PrpcClientAliases map[string]TopicAliasTarget
+}
 
-	err = errorFrom(C.a0_topic_manager_init(&tm.c, cJson))
+func NewTopicManager() (tm TopicManager) {
+	tm.SubscriberAliases = make(map[string]TopicAliasTarget)
+	tm.RpcClientAliases = make(map[string]TopicAliasTarget)
+	tm.PrpcClientAliases = make(map[string]TopicAliasTarget)
 	return
 }
 
-func (tm *TopicManager) Close() error {
-	return errorFrom(C.a0_topic_manager_close(&tm.c))
+func (tm *TopicManager) withC(fn func(C.a0_topic_manager_t)) {
+	ctm := C.a0_topic_manager_t{}
+	ctm.container = C.CString(tm.Container)
+	defer C.free(unsafe.Pointer(ctm.container))
+
+	ctm.subscriber_aliases_size = C.uint64_t(len(tm.SubscriberAliases))
+	if ctm.subscriber_aliases_size == 0 {
+		ctm.subscriber_aliases = nil
+	} else {
+		ctm.subscriber_aliases = (*C.a0_topic_alias_t)(C.malloc(ctm.subscriber_aliases_size * C.size_t(unsafe.Sizeof(C.a0_topic_alias_t{}))))
+		defer C.free(unsafe.Pointer(ctm.subscriber_aliases))
+
+		cSubAliases := (*[1 << 30]C.a0_topic_alias_t)(unsafe.Pointer(ctm.subscriber_aliases))[:int(ctm.subscriber_aliases_size):int(ctm.subscriber_aliases_size)]
+
+		i := 0
+		for k, v := range tm.SubscriberAliases {
+			cSubAliases[i].name = C.CString(k)
+			cSubAliases[i].target_container = C.CString(v.Container)
+			cSubAliases[i].target_topic = C.CString(v.Topic)
+
+			defer C.free(unsafe.Pointer(cSubAliases[i].name))
+			defer C.free(unsafe.Pointer(cSubAliases[i].target_container))
+			defer C.free(unsafe.Pointer(cSubAliases[i].target_topic))
+
+			i++
+		}
+	}
+
+	ctm.rpc_client_aliases_size = C.uint64_t(len(tm.RpcClientAliases))
+	if ctm.rpc_client_aliases_size == 0 {
+		ctm.rpc_client_aliases = nil
+	} else {
+		ctm.rpc_client_aliases = (*C.a0_topic_alias_t)(C.malloc(ctm.rpc_client_aliases_size * C.size_t(unsafe.Sizeof(C.a0_topic_alias_t{}))))
+		defer C.free(unsafe.Pointer(ctm.rpc_client_aliases))
+
+		cRpcAliases := (*[1 << 30]C.a0_topic_alias_t)(unsafe.Pointer(ctm.rpc_client_aliases))[:int(ctm.rpc_client_aliases_size):int(ctm.rpc_client_aliases_size)]
+
+		i := 0
+		for k, v := range tm.RpcClientAliases {
+			cRpcAliases[i].name = C.CString(k)
+			cRpcAliases[i].target_container = C.CString(v.Container)
+			cRpcAliases[i].target_topic = C.CString(v.Topic)
+
+			defer C.free(unsafe.Pointer(cRpcAliases[i].name))
+			defer C.free(unsafe.Pointer(cRpcAliases[i].target_container))
+			defer C.free(unsafe.Pointer(cRpcAliases[i].target_topic))
+
+			i++
+		}
+	}
+
+	ctm.prpc_client_aliases_size = C.uint64_t(len(tm.PrpcClientAliases))
+	if ctm.prpc_client_aliases_size == 0 {
+		ctm.prpc_client_aliases = nil
+	} else {
+		ctm.prpc_client_aliases = (*C.a0_topic_alias_t)(C.malloc(ctm.prpc_client_aliases_size * C.size_t(unsafe.Sizeof(C.a0_topic_alias_t{}))))
+		defer C.free(unsafe.Pointer(ctm.prpc_client_aliases))
+
+		cPrpcAliases := (*[1 << 30]C.a0_topic_alias_t)(unsafe.Pointer(ctm.prpc_client_aliases))[:int(ctm.prpc_client_aliases_size):int(ctm.prpc_client_aliases_size)]
+
+		i := 0
+		for k, v := range tm.PrpcClientAliases {
+			cPrpcAliases[i].name = C.CString(k)
+			cPrpcAliases[i].target_container = C.CString(v.Container)
+			cPrpcAliases[i].target_topic = C.CString(v.Topic)
+
+			defer C.free(unsafe.Pointer(cPrpcAliases[i].name))
+			defer C.free(unsafe.Pointer(cPrpcAliases[i].target_container))
+			defer C.free(unsafe.Pointer(cPrpcAliases[i].target_topic))
+
+			i++
+		}
+	}
+
+	fn(ctm)
 }
 
 func (tm *TopicManager) OpenConfigTopic() (shm Shm, err error) {
-	err = errorFrom(C.a0_topic_manager_open_config_topic(&tm.c, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_config_topic(&ctm, &shm.c))
+	})
 	return
 }
 
@@ -36,7 +118,9 @@ func (tm *TopicManager) OpenPublisherTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_open_publisher_topic(&tm.c, cName, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_publisher_topic(&ctm, cName, &shm.c))
+	})
 	return
 }
 
@@ -44,7 +128,9 @@ func (tm *TopicManager) OpenSubscriberTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_open_subscriber_topic(&tm.c, cName, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_subscriber_topic(&ctm, cName, &shm.c))
+	})
 	return
 }
 
@@ -52,7 +138,9 @@ func (tm *TopicManager) OpenRpcServerTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_open_rpc_server_topic(&tm.c, cName, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_rpc_server_topic(&ctm, cName, &shm.c))
+	})
 	return
 }
 
@@ -60,7 +148,9 @@ func (tm *TopicManager) OpenRpcClientTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_open_rpc_client_topic(&tm.c, cName, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_rpc_client_topic(&ctm, cName, &shm.c))
+	})
 	return
 }
 
@@ -68,7 +158,9 @@ func (tm *TopicManager) OpenPrpcServerTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_open_prpc_server_topic(&tm.c, cName, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_prpc_server_topic(&ctm, cName, &shm.c))
+	})
 	return
 }
 
@@ -76,6 +168,8 @@ func (tm *TopicManager) OpenPrpcClientTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	err = errorFrom(C.a0_topic_manager_open_prpc_client_topic(&tm.c, cName, &shm.c))
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_prpc_client_topic(&ctm, cName, &shm.c))
+	})
 	return
 }
