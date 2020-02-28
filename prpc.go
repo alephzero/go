@@ -44,12 +44,12 @@ func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string
 
 	rs.onconnectId = registerPrpcConnectionCallback(func(cConn C.a0_prpc_connection_t) {
 		onconnect(PrpcConnection{cConn})
-		_ = activePktSpace  // keep alive
+		_ = activePktSpace // keep alive
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cConnId *C.char) {
 		oncancel(C.GoString(cConnId))
-		_ = activePktSpace  // keep alive
+		_ = activePktSpace // keep alive
 	})
 
 	err = errorFrom(C.a0go_prpc_server_init(&rs.c, shm.c.buf, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onconnectId), C.uintptr_t(rs.oncancelId)))

@@ -44,12 +44,12 @@ func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (r
 
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
 		onrequest(RpcRequest{cReq})
-		_ = activePktSpace  // keep alive
+		_ = activePktSpace // keep alive
 	})
 
 	rs.oncancelId = registerPacketIdCallback(func(cReqId *C.char) {
 		oncancel(C.GoString(cReqId))
-		_ = activePktSpace  // keep alive
+		_ = activePktSpace // keep alive
 	})
 
 	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c.buf, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))

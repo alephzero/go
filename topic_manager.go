@@ -12,15 +12,15 @@ import (
 )
 
 type TopicAliasTarget struct {
-	Container string
-	Topic string
+	Container string `json:"container"`
+	Topic     string `json:"topic"`
 }
 
 type TopicManager struct {
-	Container string
-	SubscriberAliases map[string]TopicAliasTarget
-	RpcClientAliases map[string]TopicAliasTarget
-	PrpcClientAliases map[string]TopicAliasTarget
+	Container         string                      `json:"container"`
+	SubscriberAliases map[string]TopicAliasTarget `json:"subscriber_aliases,omitempty"`
+	RpcClientAliases  map[string]TopicAliasTarget `json:"rpc_client_aliases,omitempty"`
+	PrpcClientAliases map[string]TopicAliasTarget `json:"prpc_client_aliases,omitempty"`
 }
 
 func NewTopicManager() (tm TopicManager) {
