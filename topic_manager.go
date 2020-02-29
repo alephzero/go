@@ -23,13 +23,6 @@ type TopicManager struct {
 	PrpcClientAliases map[string]TopicAliasTarget `json:"prpc_client_aliases,omitempty"`
 }
 
-func NewTopicManager() (tm TopicManager) {
-	tm.SubscriberAliases = make(map[string]TopicAliasTarget)
-	tm.RpcClientAliases = make(map[string]TopicAliasTarget)
-	tm.PrpcClientAliases = make(map[string]TopicAliasTarget)
-	return
-}
-
 func (tm *TopicManager) withC(fn func(C.a0_topic_manager_t)) {
 	ctm := C.a0_topic_manager_t{}
 	ctm.container = C.CString(tm.Container)
