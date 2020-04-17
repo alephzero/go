@@ -34,7 +34,7 @@ func (p *Packet) ID() string {
 }
 
 func PacketDepKey() string {
-	return C.GoString(C.a0_packet_dep_key())
+	return C.GoString(C.a0_packet_dep_key)
 }
 
 func packetFromC(cPkt C.a0_packet_t) (pkt Packet) {
