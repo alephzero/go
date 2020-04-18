@@ -22,8 +22,8 @@ func NewPacket(headers map[string][]string, payload []byte) (pkt Packet) {
 	cPkt := C.a0_packet_t{}
 	C.a0_packet_init(&cPkt)
 
-	idCStr := ([37]C.char)(cPkt.id)
-	pkt.id = C.GoStringN(&idCStr[0], 36)
+	idCStr := ([C.A0_PACKET_ID_SIZE]C.char)(cPkt.id)
+	pkt.id = C.GoStringN(&idCStr[0], C.A0_PACKET_ID_SIZE - 1)
 	pkt.Headers = headers
 	pkt.Payload = payload
 	return
@@ -34,7 +34,7 @@ func (p *Packet) ID() string {
 }
 
 func PacketDepKey() string {
-	return C.GoString(C.a0_packet_dep_key)
+	return C.GoString(C.A0_PACKET_DEP_KEY)
 }
 
 func packetFromC(cPkt C.a0_packet_t) (pkt Packet) {
