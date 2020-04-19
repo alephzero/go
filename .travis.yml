@@ -1,0 +1,14 @@
+os: linux
+dist: bionic
+
+language: go
+
+matrix:
+  include:
+  - name: Basic Tests
+    install:
+      - pushd ./alephzero/ && sudo make install -j && popd
+    script:
+      - go test -race -coverprofile=coverage.txt -covermode=atomic
+    after_success:
+      - bash <(curl -s https://codecov.io/bash)

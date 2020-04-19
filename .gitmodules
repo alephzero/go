@@ -1,0 +1,3 @@
+[submodule "alephzero"]
+	path = alephzero
+	url = https://github.com/alephzero/alephzero
