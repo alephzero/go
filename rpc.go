@@ -37,9 +37,10 @@ func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (r
 	rs = &RpcServer{}
 
 	var activePktSpace []byte
-	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		activePktSpace = make([]byte, int(size))
 		wrapGoMem(activePktSpace, out)
+		return A0_OK
 	})
 
 	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
@@ -92,9 +93,10 @@ type RpcClient struct {
 func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
 	rc = &RpcClient{}
 
-	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		rc.activePktSpace = make([]byte, int(size))
 		wrapGoMem(rc.activePktSpace, out)
+		return A0_OK
 	})
 
 	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c.buf, C.uintptr_t(rc.allocId)))
