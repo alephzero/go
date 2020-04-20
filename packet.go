@@ -22,8 +22,8 @@ func NewPacket(headers map[string][]string, payload []byte) (pkt Packet) {
 	cPkt := C.a0_packet_t{}
 	C.a0_packet_init(&cPkt)
 
-	idCStr := ([C.A0_PACKET_ID_SIZE]C.char)(cPkt.id)
-	pkt.id = C.GoStringN(&idCStr[0], C.A0_PACKET_ID_SIZE - 1)
+	idCStr := ([C.A0_UUID_SIZE]C.char)(cPkt.id)
+	pkt.id = C.GoStringN(&idCStr[0], C.A0_UUID_SIZE - 1)
 	pkt.Headers = headers
 	pkt.Payload = payload
 	return
