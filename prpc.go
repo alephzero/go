@@ -37,9 +37,10 @@ func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string
 	rs = &PrpcServer{}
 
 	var activePktSpace []byte
-	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		activePktSpace = make([]byte, int(size))
 		wrapGoMem(activePktSpace, out)
+		return A0_OK
 	})
 
 	rs.onconnectId = registerPrpcConnectionCallback(func(cConn C.a0_prpc_connection_t) {
@@ -92,9 +93,10 @@ type PrpcClient struct {
 func NewPrpcClient(shm Shm) (rc *PrpcClient, err error) {
 	rc = &PrpcClient{}
 
-	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		rc.activePktSpace = make([]byte, int(size))
 		wrapGoMem(rc.activePktSpace, out)
+		return A0_OK
 	})
 
 	err = errorFrom(C.a0go_prpc_client_init(&rc.c, shm.c.buf, C.uintptr_t(rc.allocId)))

@@ -13,8 +13,11 @@ import (
 	"unsafe"
 )
 
+// https://github.com/golang/go/issues/15980
+var A0_OK C.errno_t = 0
+
 func errorFrom(err C.errno_t) error {
-	if err == 0 {
+	if err == A0_OK {
 		return nil
 	}
 	return syscall.Errno(err)
@@ -40,19 +43,19 @@ func wrapGoMem(goMem []byte, out *C.a0_buf_t) {
 
 var (
 	allocMutex    = sync.Mutex{}
-	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t))
+	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t) C.errno_t)
 	nextAllocId   uintptr
 )
 
 //export a0go_alloc
-func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) {
+func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) C.errno_t {
 	allocMutex.Lock()
 	fn := allocRegistry[uintptr(id)]
 	allocMutex.Unlock()
-	fn(size, out)
+	return fn(size, out)
 }
 
-func registerAlloc(fn func(C.size_t, *C.a0_buf_t)) (id uintptr) {
+func registerAlloc(fn func(C.size_t, *C.a0_buf_t) C.errno_t) (id uintptr) {
 	allocMutex.Lock()
 	defer allocMutex.Unlock()
 	id = nextAllocId

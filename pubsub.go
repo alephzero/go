@@ -52,9 +52,10 @@ type SubscriberSync struct {
 func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) (ss *SubscriberSync, err error) {
 	ss = &SubscriberSync{}
 
-	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		ss.activePktSpace = make([]byte, int(size))
 		wrapGoMem(ss.activePktSpace, out)
+		return A0_OK
 	})
 
 	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.buf, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
@@ -93,9 +94,10 @@ func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, call
 	s = &Subscriber{}
 
 	var activePktSpace []byte
-	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		activePktSpace = make([]byte, int(size))
 		wrapGoMem(activePktSpace, out)
+		return A0_OK
 	})
 
 	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
@@ -132,9 +134,10 @@ func (s *Subscriber) Close() (err error) {
 
 func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, err error) {
 	var pktSpace []byte
-	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) {
+	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		pktSpace = make([]byte, int(size))
 		wrapGoMem(pktSpace, out)
+		return A0_OK
 	})
 	defer unregisterAlloc(allocId)
 
