@@ -2,6 +2,8 @@ os: linux
 dist: bionic
 
 language: go
+env:
+- GODEBUG=cgocheck=2
 
 matrix:
   include:
