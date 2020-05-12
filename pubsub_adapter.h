@@ -14,7 +14,8 @@ static inline errno_t a0go_subscriber_sync_init(a0_subscriber_sync_t* sub_sync,
                                                 a0_subscriber_iter_t sub_iter) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
-      .fn = a0go_alloc,
+      .alloc = a0go_alloc,
+      .dealloc = NULL,
   };
   return a0_subscriber_sync_init(sub_sync, arena, alloc, sub_init, sub_iter);
 }
@@ -27,7 +28,8 @@ static inline errno_t a0go_subscriber_init(a0_subscriber_t* sub,
                                            uintptr_t packet_callback_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
-      .fn = a0go_alloc,
+      .alloc = a0go_alloc,
+      .dealloc = NULL,
   };
   a0_packet_callback_t packet_callback = {
       .user_data = (void*)packet_callback_id,
@@ -51,7 +53,8 @@ static inline errno_t a0go_subscriber_read_one(a0_buf_t arena,
                                                a0_packet_t* out) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
-      .fn = a0go_alloc,
+      .alloc = a0go_alloc,
+      .dealloc = NULL,
   };
   return a0_subscriber_read_one(arena, alloc, sub_init, flags, out);
 }

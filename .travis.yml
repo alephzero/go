@@ -5,6 +5,10 @@ language: go
 env:
 - GODEBUG=cgocheck=2
 
+branches:
+  only:
+    - master
+
 matrix:
   include:
   - name: Basic Tests

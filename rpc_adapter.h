@@ -16,7 +16,8 @@ static inline errno_t a0go_rpc_server_init(a0_rpc_server_t* server,
                                            uintptr_t oncancel_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
-      .fn = a0go_alloc,
+      .alloc = a0go_alloc,
+      .dealloc = NULL,
   };
   a0_rpc_request_callback_t onrequest = {
       .user_data = (void*)onrequest_id,
@@ -42,7 +43,8 @@ static inline errno_t a0go_rpc_client_init(a0_rpc_client_t* client,
                                            uintptr_t alloc_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
-      .fn = a0go_alloc,
+      .alloc = a0go_alloc,
+      .dealloc = NULL,
   };
   return a0_rpc_client_init(client, arena, alloc);
 }
