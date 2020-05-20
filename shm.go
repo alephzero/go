@@ -2,7 +2,7 @@ package alephzero
 
 /*
 #cgo pkg-config: alephzero
-#include <a0/shm.h>
+#include <a0/file_arena.h>
 #include <stdlib.h>  // free
 */
 import "C"
