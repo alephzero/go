@@ -2,7 +2,7 @@
 #define A0_GO_RPC_ADAPTER_H
 
 #include <a0/rpc.h>
-#include <a0/shm.h>
+#include <a0/file_arena.h>
 
 #include "common_adapter.h"
 #include "packet_adapter.h"
