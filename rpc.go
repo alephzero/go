@@ -53,7 +53,7 @@ func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (r
 		_ = activePktSpace // keep alive
 	})
 
-	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c.buf, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
+	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c.arena, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
 	return
 }
 
@@ -99,7 +99,7 @@ func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c.buf, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c.arena, C.uintptr_t(rc.allocId)))
 	return
 }
 

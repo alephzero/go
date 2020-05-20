@@ -13,7 +13,7 @@ type Publisher struct {
 
 func NewPublisher(shm Shm) (p *Publisher, err error) {
 	p = &Publisher{}
-	err = errorFrom(C.a0_publisher_init(&p.c, shm.c.buf))
+	err = errorFrom(C.a0_publisher_init(&p.c, shm.c.arena))
 	return
 }
 
@@ -58,7 +58,7 @@ func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) 
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.buf, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
+	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.arena, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
 	return
 }
 
@@ -104,7 +104,7 @@ func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, call
 		callback(packetFromC(cPkt))
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c.buf, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c.arena, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
@@ -142,7 +142,7 @@ func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, 
 	defer unregisterAlloc(allocId)
 
 	cPkt := C.a0_packet_t{}
-	err = errorFrom(C.a0go_subscriber_read_one(shm.c.buf, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
+	err = errorFrom(C.a0go_subscriber_read_one(shm.c.arena, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
 	pkt = packetFromC(cPkt)
 	copy(pkt.Payload, pkt.Payload)
 	return
