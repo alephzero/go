@@ -1,5 +1,5 @@
 # Aleph Zero: Go
-[![Build Status](https://travis-ci.com/alephzero/go.svg?branch=master)](https://travis-ci.com/alephzero/go)
+[![CI](https://github.com/alephzero/go/workflows/CI/badge.svg)](https://github.com/alephzero/go/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/alephzero/go/branch/master/graph/badge.svg)](https://codecov.io/gh/alephzero/go)
 
 TODO: What is it? Why is it? Who is it????

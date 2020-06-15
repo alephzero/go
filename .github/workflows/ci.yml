@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  main:
+    name: Main
+
+    runs-on: ubuntu-latest
+    container:
+      image: 'ubuntu:20.04'
+
+    steps:
+    - name: install apt deps
+      run: apt update && apt install --no-install-recommends -y ca-certificates curl g++ git golang make pkg-config
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: install alephzero core
+      run: cd ./alephzero/ && make install -j && cd ..
+    - name: run tests
+      run: go test -race -coverprofile=coverage.txt -covermode=atomic
+    - name: run
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        # Use action when https://github.com/codecov/codecov-action/issues/24 is resolved
+        curl -o ./codecov https://codecov.io/bash
+        chmod +x ./codecov
+        ./codecov
