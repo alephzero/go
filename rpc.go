@@ -8,6 +8,7 @@ package alephzero
 import "C"
 
 import (
+	"log"
 	"sync"
 	"unsafe"
 )
@@ -149,7 +150,12 @@ var (
 //export a0go_rpc_request_callback
 func a0go_rpc_request_callback(id unsafe.Pointer, c C.a0_rpc_request_t) {
 	rpcRequestCallbackMutex.Lock()
-	fn := rpcRequestCallbackRegistry[uintptr(id)]
+	fn, ok := rpcRequestCallbackRegistry[uintptr(id)]
+	if !ok {
+		log.Printf("a0go rpc: No function for id %v", uintptr(id))
+		rpcRequestCallbackMutex.Unlock()
+		return
+	}
 	rpcRequestCallbackMutex.Unlock()
 	fn(c)
 }
