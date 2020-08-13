@@ -24,7 +24,7 @@ jobs:
     - name: install alephzero core
       run: cd ./alephzero/ && make install -j && cd ..
     - name: run tests
-      run: go test -race -coverprofile=coverage.txt -covermode=atomic
+      run: GODEBUG=cgocheck=2 go test -race -coverprofile=coverage.txt -covermode=atomic
     - name: run
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

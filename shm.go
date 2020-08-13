@@ -12,7 +12,8 @@ import (
 )
 
 type ShmOptions struct {
-	Size int
+	Size   int
+	Resize bool
 }
 
 type Shm struct {
@@ -23,9 +24,10 @@ func ShmOpen(path string, opts *ShmOptions) (shm Shm, err error) {
 	pathCStr := C.CString(path)
 	defer C.free(unsafe.Pointer(pathCStr))
 
-	var cOpts C.a0_shm_options_t
+	var cOpts C.a0_shm_options_t = C.A0_SHM_OPTIONS_DEFAULT
 	if opts != nil {
 		cOpts.size = C.off_t(opts.Size)
+		cOpts.resize = C.bool(opts.Resize)
 	}
 	err = errorFrom(C.a0_shm_open(pathCStr, &cOpts, &shm.c))
 	return
