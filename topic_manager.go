@@ -107,6 +107,13 @@ func (tm *TopicManager) OpenConfigTopic() (shm Shm, err error) {
 	return
 }
 
+func (tm *TopicManager) OpenHeartbeatTopic() (shm Shm, err error) {
+	tm.withC(func(ctm C.a0_topic_manager_t) {
+		err = errorFrom(C.a0_topic_manager_open_heartbeat_topic(&ctm, &shm.c))
+	})
+	return
+}
+
 func (tm *TopicManager) OpenPublisherTopic(name string) (shm Shm, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
