@@ -3,7 +3,6 @@
 
 #include <a0/common.h>
 
-extern errno_t a0go_alloc(void*, size_t, a0_buf_t*);
 extern void a0go_callback(void*);
 
 // Utility to help copy Go pointers into C.
