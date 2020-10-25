@@ -9,19 +9,8 @@ import "C"
 
 import (
 	"sync"
-	"syscall"
 	"unsafe"
 )
-
-// https://github.com/golang/go/issues/15980
-var A0_OK C.errno_t = 0
-
-func errorFrom(err C.errno_t) error {
-	if err == A0_OK {
-		return nil
-	}
-	return syscall.Errno(err)
-}
 
 // dst is a void**. src is a void*;
 // This function is *dst = src.
@@ -35,39 +24,6 @@ func wrapGoMem(goMem []byte, out *C.a0_buf_t) {
 		cpPtr(unsafe.Pointer(&out.ptr), unsafe.Pointer(&goMem[0]))
 	}
 	return
-}
-
-///////////
-// Alloc //
-///////////
-
-var (
-	allocMutex    = sync.Mutex{}
-	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t) C.errno_t)
-	nextAllocId   uintptr
-)
-
-//export a0go_alloc
-func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) C.errno_t {
-	allocMutex.Lock()
-	fn := allocRegistry[uintptr(id)]
-	allocMutex.Unlock()
-	return fn(size, out)
-}
-
-func registerAlloc(fn func(C.size_t, *C.a0_buf_t) C.errno_t) (id uintptr) {
-	allocMutex.Lock()
-	defer allocMutex.Unlock()
-	id = nextAllocId
-	nextAllocId++
-	allocRegistry[id] = fn
-	return
-}
-
-func unregisterAlloc(id uintptr) {
-	allocMutex.Lock()
-	defer allocMutex.Unlock()
-	delete(allocRegistry, id)
 }
 
 //////////////

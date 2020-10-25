@@ -2,10 +2,10 @@
 #define A0_GO_PRPC_ADAPTER_H
 
 #include <a0/prpc.h>
-#include <a0/file_arena.h>
 
 #include <stdbool.h>
 
+#include "alloc_adapter.h"
 #include "common_adapter.h"
 #include "packet_adapter.h"
 
