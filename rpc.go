@@ -33,7 +33,7 @@ type RpcServer struct {
 	oncancelId  uintptr
 }
 
-func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (rs *RpcServer, err error) {
+func NewRpcServer(file File, onrequest func(RpcRequest), oncancel func(string)) (rs *RpcServer, err error) {
 	rs = &RpcServer{}
 
 	var activePktSpace []byte
@@ -53,7 +53,7 @@ func NewRpcServer(shm Shm, onrequest func(RpcRequest), oncancel func(string)) (r
 		_ = activePktSpace // keep alive
 	})
 
-	err = errorFrom(C.a0go_rpc_server_init(&rs.c, shm.c.arena, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
+	err = errorFrom(C.a0go_rpc_server_init(&rs.c, file.c.arena, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onrequestId), C.uintptr_t(rs.oncancelId)))
 	return
 }
 
@@ -90,7 +90,7 @@ type RpcClient struct {
 	activePktSpace []byte
 }
 
-func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
+func NewRpcClient(file File) (rc *RpcClient, err error) {
 	rc = &RpcClient{}
 
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
@@ -99,7 +99,7 @@ func NewRpcClient(shm Shm) (rc *RpcClient, err error) {
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_rpc_client_init(&rc.c, shm.c.arena, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_rpc_client_init(&rc.c, file.c.arena, C.uintptr_t(rc.allocId)))
 	return
 }
 

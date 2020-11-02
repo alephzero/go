@@ -6,14 +6,14 @@ import (
 )
 
 func TestRpc(t *testing.T) {
-	ShmUnlink("/test_rpc")
+	FileRemove("test_rpc")
 
-	shm, err := ShmOpen("/test_rpc", nil)
+	file, err := FileOpen("test_rpc", nil)
 	if err != nil {
-		t.Errorf("ShmOpen(\"/test_rpc\") failed with %v", err)
+		t.Errorf("FileOpen(\"test_rpc\") failed with %v", err)
 	}
 
-	rs, err := NewRpcServer(shm, func(req RpcRequest) {
+	rs, err := NewRpcServer(file, func(req RpcRequest) {
 		if string(req.Packet().Payload) != "foo" {
 			t.Errorf("Server expected a request with message 'foo', got %v", req.Packet().Payload)
 		}
@@ -24,7 +24,7 @@ func TestRpc(t *testing.T) {
 	}
 	defer rs.Close()
 
-	rc, err := NewRpcClient(shm)
+	rc, err := NewRpcClient(file)
 	if err != nil {
 		t.Errorf("NewRpcClient failed with %v", err)
 	}

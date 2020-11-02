@@ -33,7 +33,7 @@ type PrpcServer struct {
 	oncancelId  uintptr
 }
 
-func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string)) (rs *PrpcServer, err error) {
+func NewPrpcServer(file File, onconnect func(PrpcConnection), oncancel func(string)) (rs *PrpcServer, err error) {
 	rs = &PrpcServer{}
 
 	var activePktSpace []byte
@@ -53,7 +53,7 @@ func NewPrpcServer(shm Shm, onconnect func(PrpcConnection), oncancel func(string
 		_ = activePktSpace // keep alive
 	})
 
-	err = errorFrom(C.a0go_prpc_server_init(&rs.c, shm.c.arena, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onconnectId), C.uintptr_t(rs.oncancelId)))
+	err = errorFrom(C.a0go_prpc_server_init(&rs.c, file.c.arena, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onconnectId), C.uintptr_t(rs.oncancelId)))
 	return
 }
 
@@ -90,7 +90,7 @@ type PrpcClient struct {
 	activePktSpace []byte
 }
 
-func NewPrpcClient(shm Shm) (rc *PrpcClient, err error) {
+func NewPrpcClient(file File) (rc *PrpcClient, err error) {
 	rc = &PrpcClient{}
 
 	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
@@ -99,7 +99,7 @@ func NewPrpcClient(shm Shm) (rc *PrpcClient, err error) {
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_prpc_client_init(&rc.c, shm.c.arena, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_prpc_client_init(&rc.c, file.c.arena, C.uintptr_t(rc.allocId)))
 	return
 }
 

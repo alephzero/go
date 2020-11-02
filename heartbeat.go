@@ -14,12 +14,12 @@ type Heartbeat struct {
 	c C.a0_heartbeat_t
 }
 
-func NewHeartbeat(shm Shm, opts *HeartbeatOptions) (h Heartbeat, err error) {
+func NewHeartbeat(file File, opts *HeartbeatOptions) (h Heartbeat, err error) {
 	var cOpts C.a0_heartbeat_options_t = C.A0_HEARTBEAT_OPTIONS_DEFAULT
 	if opts != nil {
 		cOpts.freq = C.double(opts.Freq)
 	}
-	err = errorFrom(C.a0_heartbeat_init(&h.c, shm.c.arena, &cOpts))
+	err = errorFrom(C.a0_heartbeat_init(&h.c, file.c.arena, &cOpts))
 	return
 }
 
