@@ -11,9 +11,9 @@ type Publisher struct {
 	c C.a0_publisher_t
 }
 
-func NewPublisher(shm Shm) (p *Publisher, err error) {
+func NewPublisher(file File) (p *Publisher, err error) {
 	p = &Publisher{}
-	err = errorFrom(C.a0_publisher_init(&p.c, shm.c.arena))
+	err = errorFrom(C.a0_publisher_init(&p.c, file.c.arena))
 	return
 }
 
@@ -49,7 +49,7 @@ type SubscriberSync struct {
 	activePktSpace []byte
 }
 
-func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) (ss *SubscriberSync, err error) {
+func NewSubscriberSync(file File, subInit SubscriberInit, subIter SubscriberIter) (ss *SubscriberSync, err error) {
 	ss = &SubscriberSync{}
 
 	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
@@ -58,7 +58,7 @@ func NewSubscriberSync(shm Shm, subInit SubscriberInit, subIter SubscriberIter) 
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, shm.c.arena, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
+	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, file.c.arena, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
 	return
 }
 
@@ -90,7 +90,7 @@ type Subscriber struct {
 	packetCallbackId uintptr
 }
 
-func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s *Subscriber, err error) {
+func NewSubscriber(file File, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s *Subscriber, err error) {
 	s = &Subscriber{}
 
 	var activePktSpace []byte
@@ -104,7 +104,7 @@ func NewSubscriber(shm Shm, subInit SubscriberInit, subIter SubscriberIter, call
 		callback(packetFromC(cPkt))
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, shm.c.arena, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, file.c.arena, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
 	return
 }
 
@@ -132,7 +132,7 @@ func (s *Subscriber) Close() (err error) {
 	return
 }
 
-func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, err error) {
+func SubscriberReadOne(file File, subInit SubscriberInit, flags int) (pkt Packet, err error) {
 	var pktSpace []byte
 	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
 		pktSpace = make([]byte, int(size))
@@ -142,7 +142,7 @@ func SubscriberReadOne(shm Shm, subInit SubscriberInit, flags int) (pkt Packet, 
 	defer unregisterAlloc(allocId)
 
 	cPkt := C.a0_packet_t{}
-	err = errorFrom(C.a0go_subscriber_read_one(shm.c.arena, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
+	err = errorFrom(C.a0go_subscriber_read_one(file.c.arena, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
 	pkt = packetFromC(cPkt)
 	copy(pkt.Payload, pkt.Payload)
 	return

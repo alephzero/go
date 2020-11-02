@@ -6,18 +6,18 @@ import (
 )
 
 func TestHeartbeat(t *testing.T) {
-	ShmUnlink("/test_heartbeat")
+	FileRemove("test_heartbeat")
 
-	shm, err := ShmOpen("/test_heartbeat", nil)
+	file, err := FileOpen("test_heartbeat", nil)
 	if err != nil {
-		t.Errorf("ShmOpen(\"/test_heartbeat\") failed with %v", err)
+		t.Errorf("FileOpen(\"test_heartbeat\") failed with %v", err)
 	}
 
-	h, err := NewHeartbeat(shm, nil)
+	h, err := NewHeartbeat(file, nil)
 	time.Sleep(time.Second)
 	h.Close()
 
-	ss, err := NewSubscriberSync(shm, INIT_OLDEST, ITER_NEXT)
+	ss, err := NewSubscriberSync(file, INIT_OLDEST, ITER_NEXT)
 	if err != nil {
 		t.Errorf("NewSubscriberSync failed with %v", err)
 	}

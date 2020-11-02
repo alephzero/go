@@ -100,76 +100,76 @@ func (tm *TopicManager) withC(fn func(C.a0_topic_manager_t)) {
 	fn(ctm)
 }
 
-func (tm *TopicManager) OpenConfigTopic() (shm Shm, err error) {
+func (tm *TopicManager) OpenConfigTopic() (file File, err error) {
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_config_topic(&ctm, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_config_topic(&ctm, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenHeartbeatTopic() (shm Shm, err error) {
+func (tm *TopicManager) OpenHeartbeatTopic() (file File, err error) {
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_heartbeat_topic(&ctm, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_heartbeat_topic(&ctm, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenPublisherTopic(name string) (shm Shm, err error) {
+func (tm *TopicManager) OpenPublisherTopic(name string) (file File, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_publisher_topic(&ctm, cName, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_publisher_topic(&ctm, cName, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenSubscriberTopic(name string) (shm Shm, err error) {
+func (tm *TopicManager) OpenSubscriberTopic(name string) (file File, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_subscriber_topic(&ctm, cName, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_subscriber_topic(&ctm, cName, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenRpcServerTopic(name string) (shm Shm, err error) {
+func (tm *TopicManager) OpenRpcServerTopic(name string) (file File, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_rpc_server_topic(&ctm, cName, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_rpc_server_topic(&ctm, cName, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenRpcClientTopic(name string) (shm Shm, err error) {
+func (tm *TopicManager) OpenRpcClientTopic(name string) (file File, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_rpc_client_topic(&ctm, cName, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_rpc_client_topic(&ctm, cName, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenPrpcServerTopic(name string) (shm Shm, err error) {
+func (tm *TopicManager) OpenPrpcServerTopic(name string) (file File, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_prpc_server_topic(&ctm, cName, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_prpc_server_topic(&ctm, cName, &file.c))
 	})
 	return
 }
 
-func (tm *TopicManager) OpenPrpcClientTopic(name string) (shm Shm, err error) {
+func (tm *TopicManager) OpenPrpcClientTopic(name string) (file File, err error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
 	tm.withC(func(ctm C.a0_topic_manager_t) {
-		err = errorFrom(C.a0_topic_manager_open_prpc_client_topic(&ctm, cName, &shm.c))
+		err = errorFrom(C.a0_topic_manager_open_prpc_client_topic(&ctm, cName, &file.c))
 	})
 	return
 }
