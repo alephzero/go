@@ -6,7 +6,7 @@
 extern void a0go_callback(void*);
 
 // Utility to help copy Go pointers into C.
-inline void a0go_copy_ptr(uintptr_t dst, uintptr_t src) {
+static inline void a0go_copy_ptr(uintptr_t dst, uintptr_t src) {
   *((void**)dst) = (void*)src;
 }
 
