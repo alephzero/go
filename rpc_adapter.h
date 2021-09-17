@@ -8,11 +8,12 @@
 
 extern void a0go_rpc_request_callback(void*, a0_rpc_request_t);
 
-static inline a0_err_t a0go_rpc_server_init(a0_rpc_server_t* server,
-                                            a0_rpc_topic_t topic,
-                                            uintptr_t alloc_id,
-                                            uintptr_t onrequest_id,
-                                            uintptr_t oncancel_id) {
+A0_STATIC_INLINE
+a0_err_t a0go_rpc_server_init(a0_rpc_server_t* server,
+                              a0_rpc_topic_t topic,
+                              uintptr_t alloc_id,
+                              uintptr_t onrequest_id,
+                              uintptr_t oncancel_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .alloc = a0go_alloc,
@@ -29,9 +30,10 @@ static inline a0_err_t a0go_rpc_server_init(a0_rpc_server_t* server,
   return a0_rpc_server_init(server, topic, alloc, onrequest, oncancel);
 }
 
-static inline a0_err_t a0go_rpc_client_init(a0_rpc_client_t* client,
-                                            a0_rpc_topic_t topic,
-                                            uintptr_t alloc_id) {
+A0_STATIC_INLINE
+a0_err_t a0go_rpc_client_init(a0_rpc_client_t* client,
+                              a0_rpc_topic_t topic,
+                              uintptr_t alloc_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .alloc = a0go_alloc,
@@ -40,9 +42,10 @@ static inline a0_err_t a0go_rpc_client_init(a0_rpc_client_t* client,
   return a0_rpc_client_init(client, topic, alloc);
 }
 
-static inline a0_err_t a0go_rpc_send(a0_rpc_client_t* client,
-                                     a0_packet_t pkt,
-                                     uintptr_t packet_callback_id) {
+A0_STATIC_INLINE
+a0_err_t a0go_rpc_send(a0_rpc_client_t* client,
+                       a0_packet_t pkt,
+                       uintptr_t packet_callback_id) {
   a0_packet_callback_t packet_callback = {
       .user_data = (void*)packet_callback_id,
       .fn = a0go_packet_callback,

@@ -8,7 +8,6 @@ package alephzero
 import "C"
 
 import (
-	"sync"
 	"unsafe"
 )
 
@@ -58,7 +57,7 @@ func NewRpcServer(topic RpcTopic, onrequest func(RpcRequest), oncancel func(stri
 	defer freeCRpcTopic(cTopic)
 
 	var activePktSpace []byte
-	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	rs.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		activePktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -67,12 +66,12 @@ func NewRpcServer(topic RpcTopic, onrequest func(RpcRequest), oncancel func(stri
 		return A0_OK
 	})
 
-	rs.onrequestId = registerRpcRequestCallback(func(cReq C.a0_rpc_request_t) {
+	rs.onrequestId = registry.Register(func(cReq C.a0_rpc_request_t) {
 		onrequest(RpcRequest{cReq})
 		_ = activePktSpace // keep alive
 	})
 
-	rs.oncancelId = registerPacketIdCallback(func(cReqId *C.char) {
+	rs.oncancelId = registry.Register(func(cReqId *C.char) {
 		oncancel(C.GoString(cReqId))
 		_ = activePktSpace // keep alive
 	})
@@ -83,10 +82,10 @@ func NewRpcServer(topic RpcTopic, onrequest func(RpcRequest), oncancel func(stri
 
 func (rs *RpcServer) Close() (err error) {
 	err = errorFrom(C.a0_rpc_server_close(&rs.c))
-	unregisterRpcRequestCallback(rs.onrequestId)
-	unregisterPacketIdCallback(rs.oncancelId)
+	registry.Unregister(rs.onrequestId)
+	registry.Unregister(rs.oncancelId)
 	if rs.allocId > 0 {
-		unregisterAlloc(rs.allocId)
+		registry.Unregister(rs.allocId)
 	}
 	return
 }
@@ -104,7 +103,7 @@ func NewRpcClient(topic RpcTopic) (rc *RpcClient, err error) {
 	cTopic := topic.c()
 	defer freeCRpcTopic(cTopic)
 
-	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	rc.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		rc.activePktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -119,15 +118,15 @@ func NewRpcClient(topic RpcTopic) (rc *RpcClient, err error) {
 
 func (rc *RpcClient) Close() (err error) {
 	err = errorFrom(C.a0_rpc_client_close(&rc.c))
-	unregisterAlloc(rc.allocId)
+	registry.Unregister(rc.allocId)
 	return
 }
 
 func (rc *RpcClient) Send(pkt Packet, replyCb func(Packet)) error {
 	var packetCallbackId uintptr
-	packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+	packetCallbackId = registry.Register(func(cPkt C.a0_packet_t) {
 		replyCb(packetFromC(cPkt))
-		unregisterPacketCallback(packetCallbackId)
+		registry.Unregister(packetCallbackId)
 	})
 
 	cPkt := pkt.c()
@@ -142,31 +141,7 @@ func (rc *RpcClient) Cancel(reqId string) error {
 	return errorFrom(C.a0_rpc_client_cancel(&rc.c, cReqId))
 }
 
-var (
-	rpcRequestCallbackMutex    = sync.Mutex{}
-	rpcRequestCallbackRegistry = make(map[uintptr]func(C.a0_rpc_request_t))
-	nextRpcRequestCallbackId   uintptr
-)
-
 //export a0go_rpc_request_callback
 func a0go_rpc_request_callback(id unsafe.Pointer, c C.a0_rpc_request_t) {
-	rpcRequestCallbackMutex.Lock()
-	fn := rpcRequestCallbackRegistry[uintptr(id)]
-	rpcRequestCallbackMutex.Unlock()
-	fn(c)
-}
-
-func registerRpcRequestCallback(fn func(C.a0_rpc_request_t)) (id uintptr) {
-	rpcRequestCallbackMutex.Lock()
-	defer rpcRequestCallbackMutex.Unlock()
-	id = nextRpcRequestCallbackId
-	nextRpcRequestCallbackId++
-	rpcRequestCallbackRegistry[id] = fn
-	return
-}
-
-func unregisterRpcRequestCallback(id uintptr) {
-	rpcRequestCallbackMutex.Lock()
-	defer rpcRequestCallbackMutex.Unlock()
-	delete(rpcRequestCallbackRegistry, id)
+	registry.Get(uintptr(id)).(func(C.a0_rpc_request_t))(c)
 }

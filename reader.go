@@ -32,7 +32,7 @@ type ReaderSync struct {
 func NewReaderSync(arena Arena, init ReaderInit, iter ReaderIter) (rs *ReaderSync, err error) {
 	rs = &ReaderSync{}
 
-	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	rs.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		rs.activePktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -48,7 +48,7 @@ func NewReaderSync(arena Arena, init ReaderInit, iter ReaderIter) (rs *ReaderSyn
 func (rs *ReaderSync) Close() (err error) {
 	err = errorFrom(C.a0_reader_sync_close(&rs.c))
 	if rs.allocId > 0 {
-		unregisterAlloc(rs.allocId)
+		registry.Unregister(rs.allocId)
 	}
 	return
 }
@@ -77,7 +77,7 @@ func NewReader(arena Arena, init ReaderInit, iter ReaderIter, callback func(Pack
 	r = &Reader{}
 
 	var activePktSpace []byte
-	r.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	r.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		activePktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -86,7 +86,7 @@ func NewReader(arena Arena, init ReaderInit, iter ReaderIter, callback func(Pack
 		return A0_OK
 	})
 
-	r.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+	r.packetCallbackId = registry.Register(func(cPkt C.a0_packet_t) {
 		callback(packetFromC(cPkt))
 	})
 
@@ -96,16 +96,16 @@ func NewReader(arena Arena, init ReaderInit, iter ReaderIter, callback func(Pack
 
 func (r *Reader) Close() (err error) {
 	err = errorFrom(C.a0_reader_close(&r.c))
-	unregisterPacketCallback(r.packetCallbackId)
+	registry.Unregister(r.packetCallbackId)
 	if r.allocId > 0 {
-		unregisterAlloc(r.allocId)
+		registry.Unregister(r.allocId)
 	}
 	return
 }
 
 func ReaderReadOne(file File, init ReaderInit, flags int) (pkt Packet, err error) {
 	var pktSpace []byte
-	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	allocId := registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		pktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -113,7 +113,7 @@ func ReaderReadOne(file File, init ReaderInit, flags int) (pkt Packet, err error
 		}
 		return A0_OK
 	})
-	defer unregisterAlloc(allocId)
+	defer registry.Unregister(allocId)
 
 	cPkt := C.a0_packet_t{}
 	err = errorFrom(C.a0go_reader_read_one(file.c.arena, C.uintptr_t(allocId), C.a0_reader_init_t(init), C.int(flags), &cPkt))

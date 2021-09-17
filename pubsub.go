@@ -64,7 +64,7 @@ func NewSubscriberSync(topic PubSubTopic, init ReaderInit, iter ReaderIter) (ss 
 	cTopic := topic.c()
 	defer freeCPubSubTopic(cTopic)
 
-	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	ss.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		ss.activePktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -80,7 +80,7 @@ func NewSubscriberSync(topic PubSubTopic, init ReaderInit, iter ReaderIter) (ss 
 func (ss *SubscriberSync) Close() (err error) {
 	err = errorFrom(C.a0_subscriber_sync_close(&ss.c))
 	if ss.allocId > 0 {
-		unregisterAlloc(ss.allocId)
+		registry.Unregister(ss.allocId)
 	}
 	return
 }
@@ -112,7 +112,7 @@ func NewSubscriber(topic PubSubTopic, init ReaderInit, iter ReaderIter, callback
 	defer freeCPubSubTopic(cTopic)
 
 	var activePktSpace []byte
-	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	s.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		activePktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -121,7 +121,7 @@ func NewSubscriber(topic PubSubTopic, init ReaderInit, iter ReaderIter, callback
 		return A0_OK
 	})
 
-	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+	s.packetCallbackId = registry.Register(func(cPkt C.a0_packet_t) {
 		callback(packetFromC(cPkt))
 	})
 
@@ -131,9 +131,9 @@ func NewSubscriber(topic PubSubTopic, init ReaderInit, iter ReaderIter, callback
 
 func (s *Subscriber) Close() (err error) {
 	err = errorFrom(C.a0_subscriber_close(&s.c))
-	unregisterPacketCallback(s.packetCallbackId)
+	registry.Unregister(s.packetCallbackId)
 	if s.allocId > 0 {
-		unregisterAlloc(s.allocId)
+		registry.Unregister(s.allocId)
 	}
 	return
 }
@@ -143,7 +143,7 @@ func SubscriberReadOne(topic PubSubTopic, init ReaderInit, flags int) (pkt Packe
 	defer freeCPubSubTopic(cTopic)
 
 	var pktSpace []byte
-	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
+	allocId := registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		pktSpace = make([]byte, int(size))
 		out.size = size
 		if size > 0 {
@@ -151,7 +151,7 @@ func SubscriberReadOne(topic PubSubTopic, init ReaderInit, flags int) (pkt Packe
 		}
 		return A0_OK
 	})
-	defer unregisterAlloc(allocId)
+	defer registry.Unregister(allocId)
 
 	cPkt := C.a0_packet_t{}
 	err = errorFrom(C.a0go_subscriber_read_one(cTopic, C.uintptr_t(allocId), C.a0_reader_init_t(init), C.int(flags), &cPkt))

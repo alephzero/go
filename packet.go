@@ -8,7 +8,6 @@ package alephzero
 import "C"
 
 import (
-	"sync"
 	"unsafe"
 )
 
@@ -92,60 +91,12 @@ func freeCPacket(cPkt C.a0_packet_t) {
 	C.free(unsafe.Pointer(cPkt.headers_block.headers))
 }
 
-var (
-	packetCallbackMutex    = sync.Mutex{}
-	packetCallbackRegistry = make(map[uintptr]func(C.a0_packet_t))
-	nextPacketCallbackId   uintptr
-)
-
 //export a0go_packet_callback
 func a0go_packet_callback(id unsafe.Pointer, c C.a0_packet_t) {
-	packetCallbackMutex.Lock()
-	fn := packetCallbackRegistry[uintptr(id)]
-	packetCallbackMutex.Unlock()
-	fn(c)
+	registry.Get(uintptr(id)).(func(C.a0_packet_t))(c)
 }
-
-func registerPacketCallback(fn func(C.a0_packet_t)) (id uintptr) {
-	packetCallbackMutex.Lock()
-	defer packetCallbackMutex.Unlock()
-	id = nextPacketCallbackId
-	nextPacketCallbackId++
-	packetCallbackRegistry[id] = fn
-	return
-}
-
-func unregisterPacketCallback(id uintptr) {
-	packetCallbackMutex.Lock()
-	defer packetCallbackMutex.Unlock()
-	delete(packetCallbackRegistry, id)
-}
-
-var (
-	packetIdCallbackMutex    = sync.Mutex{}
-	packetIdCallbackRegistry = make(map[uintptr]func(*C.char))
-	nextPacketIdCallbackId   uintptr
-)
 
 //export a0go_packet_id_callback
 func a0go_packet_id_callback(id unsafe.Pointer, c *C.char) {
-	packetIdCallbackMutex.Lock()
-	fn := packetIdCallbackRegistry[uintptr(id)]
-	packetIdCallbackMutex.Unlock()
-	fn(c)
-}
-
-func registerPacketIdCallback(fn func(*C.char)) (id uintptr) {
-	packetIdCallbackMutex.Lock()
-	defer packetIdCallbackMutex.Unlock()
-	id = nextPacketIdCallbackId
-	nextPacketIdCallbackId++
-	packetIdCallbackRegistry[id] = fn
-	return
-}
-
-func unregisterPacketIdCallback(id uintptr) {
-	packetIdCallbackMutex.Lock()
-	defer packetIdCallbackMutex.Unlock()
-	delete(packetIdCallbackRegistry, id)
+	registry.Get(uintptr(id)).(func(*C.char))(c)
 }

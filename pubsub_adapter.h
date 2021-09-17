@@ -7,11 +7,12 @@
 #include "callback_adapter.h"
 #include "packet_adapter.h"
 
-static inline a0_err_t a0go_subscriber_sync_init(a0_subscriber_sync_t* sub_sync,
-                                                 a0_pubsub_topic_t topic,
-                                                 uintptr_t alloc_id,
-                                                 a0_reader_init_t sub_init,
-                                                 a0_reader_iter_t sub_iter) {
+A0_STATIC_INLINE
+a0_err_t a0go_subscriber_sync_init(a0_subscriber_sync_t* sub_sync,
+                                   a0_pubsub_topic_t topic,
+                                   uintptr_t alloc_id,
+                                   a0_reader_init_t sub_init,
+                                   a0_reader_iter_t sub_iter) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .alloc = a0go_alloc,
@@ -20,12 +21,13 @@ static inline a0_err_t a0go_subscriber_sync_init(a0_subscriber_sync_t* sub_sync,
   return a0_subscriber_sync_init(sub_sync, topic, alloc, sub_init, sub_iter);
 }
 
-static inline a0_err_t a0go_subscriber_init(a0_subscriber_t* sub,
-                                            a0_pubsub_topic_t topic,
-                                            uintptr_t alloc_id,
-                                            a0_reader_init_t sub_init,
-                                            a0_reader_iter_t sub_iter,
-                                            uintptr_t packet_callback_id) {
+A0_STATIC_INLINE
+a0_err_t a0go_subscriber_init(a0_subscriber_t* sub,
+                              a0_pubsub_topic_t topic,
+                              uintptr_t alloc_id,
+                              a0_reader_init_t sub_init,
+                              a0_reader_iter_t sub_iter,
+                              uintptr_t packet_callback_id) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .alloc = a0go_alloc,
@@ -38,11 +40,12 @@ static inline a0_err_t a0go_subscriber_init(a0_subscriber_t* sub,
   return a0_subscriber_init(sub, topic, alloc, sub_init, sub_iter, packet_callback);
 }
 
-static inline a0_err_t a0go_subscriber_read_one(a0_pubsub_topic_t topic,
-                                               uintptr_t alloc_id,
-                                               a0_reader_init_t sub_init,
-                                               int flags,
-                                               a0_packet_t* out) {
+A0_STATIC_INLINE
+a0_err_t a0go_subscriber_read_one(a0_pubsub_topic_t topic,
+                                  uintptr_t alloc_id,
+                                  a0_reader_init_t sub_init,
+                                  int flags,
+                                  a0_packet_t* out) {
   a0_alloc_t alloc = {
       .user_data = (void*)alloc_id,
       .alloc = a0go_alloc,
