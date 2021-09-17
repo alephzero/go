@@ -6,7 +6,7 @@ import (
 )
 
 func TestRpc(t *testing.T) {
-	FileRemove("test_rpc")
+	FileRemove("alephzero/foo.rpc.a0")
 	topic := RpcTopic{"foo", nil}
 
 	cnd := sync.NewCond(&sync.Mutex{})
