@@ -13,7 +13,7 @@ import (
 )
 
 type Packet struct {
-	id      string
+	Id      string
 	Headers map[string][]string
 	Payload []byte
 }
@@ -23,14 +23,10 @@ func NewPacket(headers map[string][]string, payload []byte) (pkt Packet) {
 	C.a0_packet_init(&cPkt)
 
 	idCStr := ([C.A0_UUID_SIZE]C.char)(cPkt.id)
-	pkt.id = C.GoStringN(&idCStr[0], C.A0_UUID_SIZE - 1)
+	pkt.Id = C.GoStringN(&idCStr[0], C.A0_UUID_SIZE-1)
 	pkt.Headers = headers
 	pkt.Payload = payload
 	return
-}
-
-func (p *Packet) ID() string {
-	return p.id
 }
 
 func PacketDepKey() string {
@@ -38,24 +34,31 @@ func PacketDepKey() string {
 }
 
 func packetFromC(cPkt C.a0_packet_t) (pkt Packet) {
-	pkt.id = string(C.GoBytes(unsafe.Pointer(&cPkt.id), 36))
+	pkt.Id = string(C.GoBytes(unsafe.Pointer(&cPkt.id), 36))
 	pkt.Headers = make(map[string][]string)
-	cHdrs := (*[1 << 30]C.a0_packet_header_t)(unsafe.Pointer(cPkt.headers_block.headers))[:int(cPkt.headers_block.size):int(cPkt.headers_block.size)]
-	for i := C.uint64_t(0); i < cPkt.headers_block.size; i++ {
-		hdr := &cHdrs[i]
+
+	hdrIter := &C.a0_packet_header_iterator_t{}
+	C.a0_packet_header_iterator_init(hdrIter, &cPkt)
+
+	hdr := &C.a0_packet_header_t{}
+	for C.a0_packet_header_iterator_next(hdrIter, hdr) == 0 {
 		hdrKey := C.GoString(hdr.key)
 		hdrVal := C.GoString(hdr.val)
 		pkt.Headers[hdrKey] = append(pkt.Headers[hdrKey], hdrVal)
 	}
-	pkt.Payload = (*[1 << 30]byte)(unsafe.Pointer(cPkt.payload.ptr))[:int(cPkt.payload.size):int(cPkt.payload.size)]
+
+	pkt.Payload = (*[1 << 30]byte)(unsafe.Pointer(cPkt.payload.data))[:int(cPkt.payload.size):int(cPkt.payload.size)]
 	return
 }
 
-func (p *Packet) c() (cPkt C.a0_packet_t) {
+func (p Packet) c() (cPkt C.a0_packet_t) {
 	for i := 0; i < 36; i++ {
-		cPkt.id[i] = (C.char)(p.id[i])
+		cPkt.id[i] = (C.char)(p.Id[i])
 	}
-	wrapGoMem(p.Payload, &cPkt.payload)
+	cPkt.payload.size = C.size_t(len(p.Payload))
+	if cPkt.payload.size > 0 {
+		cPkt.payload.data = (*C.uint8_t)(&p.Payload[0])
+	}
 
 	numHeaders := 0
 	for _, v := range p.Headers {
@@ -80,8 +83,9 @@ func (p *Packet) c() (cPkt C.a0_packet_t) {
 }
 
 func freeCPacket(cPkt C.a0_packet_t) {
-	cHdrs := (*[1 << 30]C.a0_packet_header_t)(unsafe.Pointer(cPkt.headers_block.headers))[:int(cPkt.headers_block.size):int(cPkt.headers_block.size)]
-	for i := C.uint64_t(0); i < cPkt.headers_block.size; i++ {
+	numHdrs := int(cPkt.headers_block.size)
+	cHdrs := (*[1 << 30]C.a0_packet_header_t)(unsafe.Pointer(cPkt.headers_block.headers))[:numHdrs:numHdrs]
+	for i := 0; i < numHdrs; i++ {
 		C.free(unsafe.Pointer(cHdrs[i].key))
 		C.free(unsafe.Pointer(cHdrs[i].val))
 	}

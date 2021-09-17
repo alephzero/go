@@ -2,8 +2,7 @@ package alephzero
 
 /*
 #cgo pkg-config: alephzero
-#include "common_adapter.h"
-#include <stdlib.h>  // free
+#include "callback_adapter.h"
 */
 import "C"
 
@@ -11,24 +10,6 @@ import (
 	"sync"
 	"unsafe"
 )
-
-// dst is a void**. src is a void*;
-// This function is *dst = src.
-func cpPtr(dst unsafe.Pointer, src unsafe.Pointer) {
-	C.a0go_copy_ptr(C.uintptr_t(uintptr(dst)), C.uintptr_t(uintptr(src)))
-}
-
-func wrapGoMem(goMem []byte, out *C.a0_buf_t) {
-	out.size = C.size_t(len(goMem))
-	if out.size > 0 {
-		cpPtr(unsafe.Pointer(&out.ptr), unsafe.Pointer(&goMem[0]))
-	}
-	return
-}
-
-//////////////
-// Callback //
-//////////////
 
 var (
 	callbackMutex    = sync.Mutex{}

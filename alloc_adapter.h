@@ -3,6 +3,6 @@
 
 #include <a0/alloc.h>
 
-extern errno_t a0go_alloc(void*, size_t, a0_buf_t*);
+extern a0_err_t a0go_alloc(void*, size_t, a0_buf_t*);
 
 #endif  // A0_GO_ALLOC_ADAPTER_H

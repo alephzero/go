@@ -7,39 +7,45 @@ import (
 
 func TestRpc(t *testing.T) {
 	FileRemove("test_rpc")
+	topic := RpcTopic{"foo", nil}
 
-	file, err := FileOpen("test_rpc", nil)
-	if err != nil {
-		t.Errorf("FileOpen(\"test_rpc\") failed with %v", err)
-	}
+	cnd := sync.NewCond(&sync.Mutex{})
+	gotReply := false
+	gotCancel := false
 
-	rs, err := NewRpcServer(file, func(req RpcRequest) {
-		if string(req.Packet().Payload) != "foo" {
-			t.Errorf("Server expected a request with message 'foo', got %v", req.Packet().Payload)
-		}
-		req.Reply(NewPacket(nil, []byte("bar")))
-	}, nil)
-	if err != nil {
-		t.Errorf("NewRpcServer failed with %v", err)
-	}
+	rs, err := NewRpcServer(
+		topic,
+		func(req RpcRequest) {
+			if string(req.Packet().Payload) == "reply" {
+				req.Reply(NewPacket(nil, []byte("echo reply")))
+			}
+		},
+		func(id string) {
+			cnd.L.Lock()
+			gotCancel = true
+			cnd.Signal()
+			cnd.L.Unlock()
+		})
+	check(t, err)
 	defer rs.Close()
 
-	rc, err := NewRpcClient(file)
-	if err != nil {
-		t.Errorf("NewRpcClient failed with %v", err)
-	}
-	defer rs.Close()
+	rc, err := NewRpcClient(topic)
+	check(t, err)
+	defer rc.Close()
 
-	mu := sync.Mutex{}
-	mu.Lock()
-	err = rc.Send(NewPacket(nil, []byte("foo")), func(resp Packet) {
-		if string(resp.Payload) != "bar" {
-			t.Errorf("Client expected a response with message 'bar', got %v", resp.Payload)
-		}
-		mu.Unlock()
-	})
-	if err != nil {
-		t.Errorf("RpcClient.Send failed with %v", err)
+	check(t, rc.Send(NewPacket(nil, []byte("reply")), func(resp Packet) {
+		cnd.L.Lock()
+		gotReply = true
+		cnd.Signal()
+		cnd.L.Unlock()
+	}))
+	pkt := NewPacket(nil, []byte("cancel"))
+	check(t, rc.Send(pkt, nil))
+	check(t, rc.Cancel(pkt.Id))
+
+	cnd.L.Lock()
+	for !gotReply || !gotCancel {
+		cnd.Wait()
 	}
-	mu.Lock()
+	cnd.L.Unlock()
 }

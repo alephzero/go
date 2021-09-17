@@ -14,19 +14,19 @@ import (
 
 var (
 	allocMutex    = sync.Mutex{}
-	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t) C.errno_t)
+	allocRegistry = make(map[uintptr]func(C.size_t, *C.a0_buf_t) C.a0_err_t)
 	nextAllocId   uintptr
 )
 
 //export a0go_alloc
-func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) C.errno_t {
+func a0go_alloc(id unsafe.Pointer, size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 	allocMutex.Lock()
 	fn := allocRegistry[uintptr(id)]
 	allocMutex.Unlock()
 	return fn(size, out)
 }
 
-func registerAlloc(fn func(C.size_t, *C.a0_buf_t) C.errno_t) (id uintptr) {
+func registerAlloc(fn func(C.size_t, *C.a0_buf_t) C.a0_err_t) (id uintptr) {
 	allocMutex.Lock()
 	defer allocMutex.Unlock()
 	id = nextAllocId
