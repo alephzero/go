@@ -3,8 +3,6 @@
 
 #include <a0/packet.h>
 
-#include "common_adapter.h"
-
 extern void a0go_packet_callback(void*, a0_packet_t);
 extern void a0go_packet_id_callback(void*, char*);
 

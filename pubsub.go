@@ -7,13 +7,37 @@ package alephzero
 */
 import "C"
 
+import (
+	"unsafe"
+)
+
+type PubSubTopic struct {
+	Name        string
+	FileOptions *FileOptions
+}
+
+func (t *PubSubTopic) c() (cTopic C.a0_pubsub_topic_t) {
+	cTopic.name = C.CString(t.Name)
+	if t.FileOptions != nil {
+		localOpts := t.FileOptions.toC()
+		cTopic.file_opts = &localOpts
+	}
+	return
+}
+
+func freeCPubSubTopic(cTopic C.a0_pubsub_topic_t) {
+	C.free(unsafe.Pointer(cTopic.name))
+}
+
 type Publisher struct {
 	c C.a0_publisher_t
 }
 
-func NewPublisher(file File) (p *Publisher, err error) {
+func NewPublisher(topic PubSubTopic) (p *Publisher, err error) {
 	p = &Publisher{}
-	err = errorFrom(C.a0_publisher_init(&p.c, file.c.arena))
+	cTopic := topic.c()
+	defer freeCPubSubTopic(cTopic)
+	err = errorFrom(C.a0_publisher_init(&p.c, cTopic))
 	return
 }
 
@@ -24,23 +48,8 @@ func (p *Publisher) Close() error {
 func (p *Publisher) Pub(pkt Packet) error {
 	cPkt := pkt.c()
 	defer freeCPacket(cPkt)
-	return errorFrom(C.a0_pub(&p.c, cPkt))
+	return errorFrom(C.a0_publisher_pub(&p.c, cPkt))
 }
-
-type SubscriberInit int
-
-const (
-	INIT_OLDEST      SubscriberInit = C.A0_INIT_OLDEST
-	INIT_MOST_RECENT                = C.A0_INIT_MOST_RECENT
-	INIT_AWAIT_NEW                  = C.A0_INIT_AWAIT_NEW
-)
-
-type SubscriberIter int
-
-const (
-	ITER_NEXT   SubscriberIter = C.A0_ITER_NEXT
-	ITER_NEWEST                = C.A0_ITER_NEWEST
-)
 
 type SubscriberSync struct {
 	c       C.a0_subscriber_sync_t
@@ -49,23 +58,29 @@ type SubscriberSync struct {
 	activePktSpace []byte
 }
 
-func NewSubscriberSync(file File, subInit SubscriberInit, subIter SubscriberIter) (ss *SubscriberSync, err error) {
+func NewSubscriberSync(topic PubSubTopic, init ReaderInit, iter ReaderIter) (ss *SubscriberSync, err error) {
 	ss = &SubscriberSync{}
 
-	ss.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
+	cTopic := topic.c()
+	defer freeCPubSubTopic(cTopic)
+
+	ss.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		ss.activePktSpace = make([]byte, int(size))
-		wrapGoMem(ss.activePktSpace, out)
+		out.size = size
+		if size > 0 {
+			out.data = (*C.uint8_t)(&ss.activePktSpace[0])
+		}
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, file.c.arena, C.uintptr_t(ss.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter)))
+	err = errorFrom(C.a0go_subscriber_sync_init(&ss.c, cTopic, C.uintptr_t(ss.allocId), C.a0_reader_init_t(init), C.a0_reader_iter_t(iter)))
 	return
 }
 
 func (ss *SubscriberSync) Close() (err error) {
 	err = errorFrom(C.a0_subscriber_sync_close(&ss.c))
 	if ss.allocId > 0 {
-		unregisterAlloc(ss.allocId)
+		registry.Unregister(ss.allocId)
 	}
 	return
 }
@@ -90,59 +105,56 @@ type Subscriber struct {
 	packetCallbackId uintptr
 }
 
-func NewSubscriber(file File, subInit SubscriberInit, subIter SubscriberIter, callback func(Packet)) (s *Subscriber, err error) {
+func NewSubscriber(topic PubSubTopic, init ReaderInit, iter ReaderIter, callback func(Packet)) (s *Subscriber, err error) {
 	s = &Subscriber{}
 
+	cTopic := topic.c()
+	defer freeCPubSubTopic(cTopic)
+
 	var activePktSpace []byte
-	s.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
+	s.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		activePktSpace = make([]byte, int(size))
-		wrapGoMem(activePktSpace, out)
+		out.size = size
+		if size > 0 {
+			out.data = (*C.uint8_t)(&activePktSpace[0])
+		}
 		return A0_OK
 	})
 
-	s.packetCallbackId = registerPacketCallback(func(cPkt C.a0_packet_t) {
+	s.packetCallbackId = registry.Register(func(cPkt C.a0_packet_t) {
 		callback(packetFromC(cPkt))
 	})
 
-	err = errorFrom(C.a0go_subscriber_init(&s.c, file.c.arena, C.uintptr_t(s.allocId), C.a0_subscriber_init_t(subInit), C.a0_subscriber_iter_t(subIter), C.uintptr_t(s.packetCallbackId)))
+	err = errorFrom(C.a0go_subscriber_init(&s.c, cTopic, C.uintptr_t(s.allocId), C.a0_reader_init_t(init), C.a0_reader_iter_t(iter), C.uintptr_t(s.packetCallbackId)))
 	return
-}
-
-func (s *Subscriber) AsyncClose(fn func()) error {
-	var callbackId uintptr
-	callbackId = registerCallback(func() {
-		unregisterCallback(callbackId)
-		unregisterPacketCallback(s.packetCallbackId)
-		if s.allocId > 0 {
-			unregisterAlloc(s.allocId)
-		}
-		if fn != nil {
-			fn()
-		}
-	})
-	return errorFrom(C.a0go_subscriber_async_close(&s.c, C.uintptr_t(callbackId)))
 }
 
 func (s *Subscriber) Close() (err error) {
 	err = errorFrom(C.a0_subscriber_close(&s.c))
-	unregisterPacketCallback(s.packetCallbackId)
+	registry.Unregister(s.packetCallbackId)
 	if s.allocId > 0 {
-		unregisterAlloc(s.allocId)
+		registry.Unregister(s.allocId)
 	}
 	return
 }
 
-func SubscriberReadOne(file File, subInit SubscriberInit, flags int) (pkt Packet, err error) {
+func SubscriberReadOne(topic PubSubTopic, init ReaderInit, flags int) (pkt Packet, err error) {
+	cTopic := topic.c()
+	defer freeCPubSubTopic(cTopic)
+
 	var pktSpace []byte
-	allocId := registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
+	allocId := registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		pktSpace = make([]byte, int(size))
-		wrapGoMem(pktSpace, out)
+		out.size = size
+		if size > 0 {
+			out.data = (*C.uint8_t)(&pktSpace[0])
+		}
 		return A0_OK
 	})
-	defer unregisterAlloc(allocId)
+	defer registry.Unregister(allocId)
 
 	cPkt := C.a0_packet_t{}
-	err = errorFrom(C.a0go_subscriber_read_one(file.c.arena, C.uintptr_t(allocId), C.a0_subscriber_init_t(subInit), C.int(flags), &cPkt))
+	err = errorFrom(C.a0go_subscriber_read_one(cTopic, C.uintptr_t(allocId), C.a0_reader_init_t(init), C.int(flags), &cPkt))
 	pkt = packetFromC(cPkt)
 	copy(pkt.Payload, pkt.Payload)
 	return

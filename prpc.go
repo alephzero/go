@@ -8,9 +8,26 @@ package alephzero
 import "C"
 
 import (
-	"sync"
 	"unsafe"
 )
+
+type PrpcTopic struct {
+	Name        string
+	FileOptions *FileOptions
+}
+
+func (t *PrpcTopic) c() (cTopic C.a0_prpc_topic_t) {
+	cTopic.name = C.CString(t.Name)
+	if t.FileOptions != nil {
+		localOpts := t.FileOptions.toC()
+		cTopic.file_opts = &localOpts
+	}
+	return
+}
+
+func freeCPrpcTopic(cTopic C.a0_prpc_topic_t) {
+	C.free(unsafe.Pointer(cTopic.name))
+}
 
 type PrpcConnection struct {
 	c C.a0_prpc_connection_t
@@ -20,10 +37,10 @@ func (conn *PrpcConnection) Packet() Packet {
 	return packetFromC(conn.c.pkt)
 }
 
-func (conn *PrpcConnection) Send(prog Packet, done bool) error {
-	cPkt := prog.c()
+func (conn *PrpcConnection) Send(resp Packet, done bool) error {
+	cPkt := resp.c()
 	defer freeCPacket(cPkt)
-	return errorFrom(C.a0_prpc_send(conn.c, cPkt, C.bool(done)))
+	return errorFrom(C.a0_prpc_server_send(conn.c, cPkt, C.bool(done)))
 }
 
 type PrpcServer struct {
@@ -33,52 +50,42 @@ type PrpcServer struct {
 	oncancelId  uintptr
 }
 
-func NewPrpcServer(file File, onconnect func(PrpcConnection), oncancel func(string)) (rs *PrpcServer, err error) {
-	rs = &PrpcServer{}
+func NewPrpcServer(topic PrpcTopic, onconnect func(PrpcConnection), oncancel func(string)) (ps *PrpcServer, err error) {
+	ps = &PrpcServer{}
+
+	cTopic := topic.c()
+	defer freeCPrpcTopic(cTopic)
 
 	var activePktSpace []byte
-	rs.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
+	ps.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		activePktSpace = make([]byte, int(size))
-		wrapGoMem(activePktSpace, out)
+		out.size = size
+		if size > 0 {
+			out.data = (*C.uint8_t)(&activePktSpace[0])
+		}
 		return A0_OK
 	})
 
-	rs.onconnectId = registerPrpcConnectionCallback(func(cConn C.a0_prpc_connection_t) {
-		onconnect(PrpcConnection{cConn})
+	ps.onconnectId = registry.Register(func(cReq C.a0_prpc_connection_t) {
+		onconnect(PrpcConnection{cReq})
 		_ = activePktSpace // keep alive
 	})
 
-	rs.oncancelId = registerPacketIdCallback(func(cConnId *C.char) {
-		oncancel(C.GoString(cConnId))
+	ps.oncancelId = registry.Register(func(cReqId *C.char) {
+		oncancel(C.GoString(cReqId))
 		_ = activePktSpace // keep alive
 	})
 
-	err = errorFrom(C.a0go_prpc_server_init(&rs.c, file.c.arena, C.uintptr_t(rs.allocId), C.uintptr_t(rs.onconnectId), C.uintptr_t(rs.oncancelId)))
+	err = errorFrom(C.a0go_prpc_server_init(&ps.c, cTopic, C.uintptr_t(ps.allocId), C.uintptr_t(ps.onconnectId), C.uintptr_t(ps.oncancelId)))
 	return
 }
 
-func (rs *PrpcServer) AsyncClose(fn func()) error {
-	var callbackId uintptr
-	callbackId = registerCallback(func() {
-		unregisterCallback(callbackId)
-		unregisterPrpcConnectionCallback(rs.onconnectId)
-		unregisterPacketIdCallback(rs.oncancelId)
-		if rs.allocId > 0 {
-			unregisterAlloc(rs.allocId)
-		}
-		if fn != nil {
-			fn()
-		}
-	})
-	return errorFrom(C.a0go_prpc_server_async_close(&rs.c, C.uintptr_t(callbackId)))
-}
-
-func (rs *PrpcServer) Close() (err error) {
-	err = errorFrom(C.a0_prpc_server_close(&rs.c))
-	unregisterPrpcConnectionCallback(rs.onconnectId)
-	unregisterPacketIdCallback(rs.oncancelId)
-	if rs.allocId > 0 {
-		unregisterAlloc(rs.allocId)
+func (ps *PrpcServer) Close() (err error) {
+	err = errorFrom(C.a0_prpc_server_close(&ps.c))
+	registry.Unregister(ps.onconnectId)
+	registry.Unregister(ps.oncancelId)
+	if ps.allocId > 0 {
+		registry.Unregister(ps.allocId)
 	}
 	return
 }
@@ -86,116 +93,62 @@ func (rs *PrpcServer) Close() (err error) {
 type PrpcClient struct {
 	c       C.a0_prpc_client_t
 	allocId uintptr
-	// Memory must survive between the alloc and replyCb.
+	// Memory must survive between the alloc and progressCb.
 	activePktSpace []byte
 }
 
-func NewPrpcClient(file File) (rc *PrpcClient, err error) {
+func NewPrpcClient(topic PrpcTopic) (rc *PrpcClient, err error) {
 	rc = &PrpcClient{}
 
-	rc.allocId = registerAlloc(func(size C.size_t, out *C.a0_buf_t) C.errno_t {
+	cTopic := topic.c()
+	defer freeCPrpcTopic(cTopic)
+
+	rc.allocId = registry.Register(func(size C.size_t, out *C.a0_buf_t) C.a0_err_t {
 		rc.activePktSpace = make([]byte, int(size))
-		wrapGoMem(rc.activePktSpace, out)
+		out.size = size
+		if size > 0 {
+			out.data = (*C.uint8_t)(&rc.activePktSpace[0])
+		}
 		return A0_OK
 	})
 
-	err = errorFrom(C.a0go_prpc_client_init(&rc.c, file.c.arena, C.uintptr_t(rc.allocId)))
+	err = errorFrom(C.a0go_prpc_client_init(&rc.c, cTopic, C.uintptr_t(rc.allocId)))
 	return
-}
-
-func (rc *PrpcClient) AsyncClose(fn func()) error {
-	var callbackId uintptr
-	callbackId = registerCallback(func() {
-		unregisterCallback(callbackId)
-		unregisterAlloc(rc.allocId)
-		if fn != nil {
-			fn()
-		}
-	})
-	return errorFrom(C.a0go_prpc_client_async_close(&rc.c, C.uintptr_t(callbackId)))
 }
 
 func (rc *PrpcClient) Close() (err error) {
 	err = errorFrom(C.a0_prpc_client_close(&rc.c))
-	unregisterAlloc(rc.allocId)
+	registry.Unregister(rc.allocId)
 	return
 }
 
-func (rc *PrpcClient) Connect(pkt Packet, progCb func(Packet, bool)) error {
-	var prpcCallbackId uintptr
-	prpcCallbackId = registerPrpcCallback(func(cPkt C.a0_packet_t, done C.bool) {
-		progCb(packetFromC(cPkt), bool(done))
+func (rc *PrpcClient) Connect(pkt Packet, progressCb func(Packet, bool)) error {
+	var packetCallbackId uintptr
+	packetCallbackId = registry.Register(func(cPkt C.a0_packet_t, done C.bool) {
+		progressCb(packetFromC(cPkt), bool(done))
 		if done {
-			unregisterPrpcCallback(prpcCallbackId)
+			registry.Unregister(packetCallbackId)
 		}
 	})
 
 	cPkt := pkt.c()
 	defer freeCPacket(cPkt)
 
-	return errorFrom(C.a0go_prpc_connect(&rc.c, cPkt, C.uintptr_t(prpcCallbackId)))
+	return errorFrom(C.a0go_prpc_client_connect(&rc.c, cPkt, C.uintptr_t(packetCallbackId)))
 }
 
 func (rc *PrpcClient) Cancel(reqId string) error {
 	cReqId := C.CString(reqId)
 	defer C.free(unsafe.Pointer(cReqId))
-	return errorFrom(C.a0_prpc_cancel(&rc.c, cReqId))
+	return errorFrom(C.a0_prpc_client_cancel(&rc.c, cReqId))
 }
-
-var (
-	prpcConnectionCallbackMutex    = sync.Mutex{}
-	prpcConnectionCallbackRegistry = make(map[uintptr]func(C.a0_prpc_connection_t))
-	nextPrpcConnectionCallbackId   uintptr
-)
 
 //export a0go_prpc_connection_callback
 func a0go_prpc_connection_callback(id unsafe.Pointer, c C.a0_prpc_connection_t) {
-	prpcConnectionCallbackMutex.Lock()
-	fn := prpcConnectionCallbackRegistry[uintptr(id)]
-	prpcConnectionCallbackMutex.Unlock()
-	fn(c)
+	registry.Get(uintptr(id)).(func(C.a0_prpc_connection_t))(c)
 }
 
-func registerPrpcConnectionCallback(fn func(C.a0_prpc_connection_t)) (id uintptr) {
-	prpcConnectionCallbackMutex.Lock()
-	defer prpcConnectionCallbackMutex.Unlock()
-	id = nextPrpcConnectionCallbackId
-	nextPrpcConnectionCallbackId++
-	prpcConnectionCallbackRegistry[id] = fn
-	return
-}
-
-func unregisterPrpcConnectionCallback(id uintptr) {
-	prpcConnectionCallbackMutex.Lock()
-	defer prpcConnectionCallbackMutex.Unlock()
-	delete(prpcConnectionCallbackRegistry, id)
-}
-
-var (
-	prpcCallbackMutex    = sync.Mutex{}
-	prpcCallbackRegistry = make(map[uintptr]func(C.a0_packet_t, C.bool))
-	nextPrpcCallbackId   uintptr
-)
-
-//export a0go_prpc_callback
-func a0go_prpc_callback(id unsafe.Pointer, cPkt C.a0_packet_t, done C.bool) {
-	prpcCallbackMutex.Lock()
-	fn := prpcCallbackRegistry[uintptr(id)]
-	prpcCallbackMutex.Unlock()
-	fn(cPkt, C.bool(done))
-}
-
-func registerPrpcCallback(fn func(C.a0_packet_t, C.bool)) (id uintptr) {
-	prpcCallbackMutex.Lock()
-	defer prpcCallbackMutex.Unlock()
-	id = nextPrpcCallbackId
-	nextPrpcCallbackId++
-	prpcCallbackRegistry[id] = fn
-	return
-}
-
-func unregisterPrpcCallback(id uintptr) {
-	prpcCallbackMutex.Lock()
-	defer prpcCallbackMutex.Unlock()
-	delete(prpcCallbackRegistry, id)
+//export a0go_prpc_progress_callback
+func a0go_prpc_progress_callback(id unsafe.Pointer, pkt C.a0_packet_t, done C.bool) {
+	registry.Get(uintptr(id)).(func(C.a0_packet_t, C.bool))(pkt, done)
 }
